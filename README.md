@@ -180,7 +180,7 @@ Add to Claude Desktop's config file:
 
 ### One-Click Deploy
 
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/uscardforum/mcp-server)
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/uscard-dev/uscardforum-mcp)
 
 ### Manual Deployment
 
