@@ -272,7 +272,9 @@ def _create_session_with_playwright(
     try:
         # Import here after ensuring browsers are installed
         from playwright.sync_api import sync_playwright
-        from playwright_stealth import stealth_sync
+        from playwright_stealth import Stealth
+        
+        stealth = Stealth()
         
         with sync_playwright() as p:
             # Launch browser with stealth settings
@@ -300,7 +302,7 @@ def _create_session_with_playwright(
             page = context.new_page()
 
             # Apply stealth to avoid detection
-            stealth_sync(page)
+            stealth.apply_stealth_sync(page)
 
             # Navigate to the site and wait for Cloudflare challenge to complete
             logger.info(f"Playwright: Navigating to {base_url}")
