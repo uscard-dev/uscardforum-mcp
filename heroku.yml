@@ -6,10 +6,15 @@ setup:
     MCP_TRANSPORT: streamable-http
     USCARDFORUM_URL: https://www.uscardforum.com
     USCARDFORUM_TIMEOUT: "15.0"
+    PLAYWRIGHT_BROWSERS_PATH: /app/.playwright
 
 build:
   languages:
     - python
+
+release:
+  command:
+    - playwright install chromium
 
 run:
   web: uscardforum
