@@ -2,13 +2,14 @@
 
 Provides functions and constants for bypassing Cloudflare protection
 using multiple strategies in order:
-1. cloudscraper (multiple browser profiles)
+1. Playwright with stealth (real browser - most effective)
 2. curl_cffi (real browser TLS fingerprints)
-3. Playwright with stealth (real browser fallback)
+3. cloudscraper (multiple browser profiles)
 """
 from __future__ import annotations
 
 import logging
+import subprocess
 import time
 from typing import Any
 
@@ -16,6 +17,9 @@ import cloudscraper
 import requests
 
 logger = logging.getLogger(__name__)
+
+# Track if we've already tried to install Playwright browsers
+_playwright_browsers_installed = False
 
 # Cloudflare-related status codes that might be worth retrying
 CLOUDFLARE_RETRY_CODES = {403, 429, 503, 520, 521, 522, 523, 524}
@@ -53,6 +57,65 @@ BROWSER_HEADERS = {
     "Sec-Fetch-User": "?1",
     "Cache-Control": "max-age=0",
 }
+
+
+def _ensure_playwright_browsers() -> bool:
+    """Ensure Playwright browsers are installed.
+    
+    Attempts to install Chromium if not already installed.
+    Only tries once per process to avoid repeated installation attempts.
+    
+    Returns:
+        True if browsers are available, False otherwise
+    """
+    global _playwright_browsers_installed
+    
+    if _playwright_browsers_installed:
+        return True
+    
+    try:
+        # Check if playwright is importable
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        logger.warning("Playwright package not installed")
+        return False
+    
+    # Try to launch browser to check if it's installed
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            browser.close()
+            _playwright_browsers_installed = True
+            logger.info("Playwright browsers already installed")
+            return True
+    except Exception as e:
+        logger.info(f"Playwright browsers not installed, attempting installation: {e}")
+    
+    # Try to install browsers
+    try:
+        logger.info("Installing Playwright Chromium browser...")
+        result = subprocess.run(
+            ["playwright", "install", "chromium"],
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 minute timeout
+        )
+        if result.returncode == 0:
+            logger.info("Playwright Chromium installed successfully")
+            _playwright_browsers_installed = True
+            return True
+        else:
+            logger.warning(f"Playwright install failed: {result.stderr}")
+            return False
+    except subprocess.TimeoutExpired:
+        logger.warning("Playwright installation timed out")
+        return False
+    except FileNotFoundError:
+        logger.warning("playwright command not found")
+        return False
+    except Exception as e:
+        logger.warning(f"Failed to install Playwright browsers: {e}")
+        return False
 
 
 def create_cloudflare_session(
@@ -180,7 +243,7 @@ def _create_session_with_playwright(
     """Create a requests session using cookies obtained from Playwright with stealth.
 
     Uses a real browser to solve Cloudflare challenges and transfers cookies
-    to a requests session.
+    to a requests session. Will attempt to install browsers if not present.
 
     Args:
         base_url: The base URL to navigate to
@@ -190,6 +253,11 @@ def _create_session_with_playwright(
     Returns:
         A requests.Session with Cloudflare cookies, or None if failed
     """
+    # Ensure browsers are installed
+    if not _ensure_playwright_browsers():
+        logger.warning("Playwright browsers not available")
+        return None
+    
     try:
         from playwright.sync_api import sync_playwright
         from playwright_stealth import stealth_sync
@@ -285,62 +353,32 @@ def _create_session_with_playwright(
 def create_cloudflare_session_with_fallback(
     base_url: str,
     timeout_seconds: float = 15.0,
+    use_playwright: bool = True,
     use_curl_cffi: bool = True,
-    use_playwright_fallback: bool = True,
+    use_cloudscraper: bool = True,
 ) -> requests.Session:
     """Create a session with Cloudflare bypass, trying multiple strategies.
 
-    Order of attempts:
-    1. cloudscraper with different browser profiles
+    Order of attempts (Playwright first as most effective):
+    1. Playwright with stealth (real browser - best success rate)
     2. curl_cffi with real browser TLS fingerprints
-    3. Playwright with stealth (real browser)
+    3. cloudscraper with different browser profiles
 
     Args:
         base_url: The base URL to test against
         timeout_seconds: Timeout for test requests
-        use_curl_cffi: Try curl_cffi before Playwright (default: True)
-        use_playwright_fallback: Use Playwright as final fallback (default: True)
+        use_playwright: Try Playwright first (default: True)
+        use_curl_cffi: Try curl_cffi (default: True)
+        use_cloudscraper: Try cloudscraper (default: True)
 
     Returns:
         A session configured to bypass Cloudflare
     """
     base_url = base_url.rstrip("/")
 
-    # Strategy 1: Try cloudscraper with different profiles
-    logger.info("Trying cloudscraper profiles...")
-    for profile in BROWSER_PROFILES:
-        try:
-            session = cloudscraper.create_scraper(
-                browser=profile,
-                delay=3,
-            )
-            session.headers.update(BROWSER_HEADERS)
-
-            test_resp = session.get(
-                f"{base_url}/",
-                timeout=timeout_seconds,
-                allow_redirects=True,
-            )
-            if test_resp.status_code == 200:
-                logger.info(f"Cloudflare bypass successful with cloudscraper profile: {profile}")
-                return session
-            elif test_resp.status_code == 403:
-                logger.warning(f"Cloudscraper profile {profile} got 403, trying next...")
-                continue
-        except Exception as e:
-            logger.warning(f"Cloudscraper profile {profile} failed: {e}, trying next...")
-            continue
-
-    # Strategy 2: Try curl_cffi with TLS fingerprinting
-    if use_curl_cffi:
-        logger.info("Cloudscraper failed, trying curl_cffi with TLS fingerprints...")
-        curl_session = _create_session_with_curl_cffi(base_url, timeout_seconds)
-        if curl_session is not None:
-            return curl_session  # type: ignore
-
-    # Strategy 3: Try Playwright with stealth
-    if use_playwright_fallback:
-        logger.info("curl_cffi failed, trying Playwright with stealth...")
+    # Strategy 1: Try Playwright with stealth (most effective)
+    if use_playwright:
+        logger.info("Trying Playwright with stealth (most effective)...")
         playwright_session = _create_session_with_playwright(
             base_url,
             timeout_seconds=30.0,
@@ -348,6 +386,41 @@ def create_cloudflare_session_with_fallback(
         )
         if playwright_session is not None:
             return playwright_session
+        logger.warning("Playwright failed, trying next strategy...")
+
+    # Strategy 2: Try curl_cffi with TLS fingerprinting
+    if use_curl_cffi:
+        logger.info("Trying curl_cffi with TLS fingerprints...")
+        curl_session = _create_session_with_curl_cffi(base_url, timeout_seconds)
+        if curl_session is not None:
+            return curl_session  # type: ignore
+        logger.warning("curl_cffi failed, trying next strategy...")
+
+    # Strategy 3: Try cloudscraper with different profiles
+    if use_cloudscraper:
+        logger.info("Trying cloudscraper profiles...")
+        for profile in BROWSER_PROFILES:
+            try:
+                session = cloudscraper.create_scraper(
+                    browser=profile,
+                    delay=3,
+                )
+                session.headers.update(BROWSER_HEADERS)
+
+                test_resp = session.get(
+                    f"{base_url}/",
+                    timeout=timeout_seconds,
+                    allow_redirects=True,
+                )
+                if test_resp.status_code == 200:
+                    logger.info(f"Cloudflare bypass successful with cloudscraper profile: {profile}")
+                    return session
+                elif test_resp.status_code == 403:
+                    logger.warning(f"Cloudscraper profile {profile} got 403, trying next...")
+                    continue
+            except Exception as e:
+                logger.warning(f"Cloudscraper profile {profile} failed: {e}, trying next...")
+                continue
 
     # Ultimate fallback: return cloudscraper session even if it didn't work
     logger.warning("All bypass methods failed, using basic cloudscraper as fallback")
