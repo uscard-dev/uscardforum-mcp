@@ -17,6 +17,10 @@
       "description": "Request timeout in seconds",
       "value": "15.0"
     },
+    "NITAN_TOKEN": {
+      "description": "Bearer token for MCP authentication (streamable-http only)",
+      "required": false
+    },
     "NITAN_USERNAME": {
       "description": "Forum username for auto-login (optional)",
       "required": false

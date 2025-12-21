@@ -18,11 +18,13 @@ run:
 # - MCP_TRANSPORT: Transport mode (stdio, sse, streamable-http). Default: stdio
 # - MCP_HOST: HTTP host (default: 0.0.0.0)
 # - MCP_PORT: HTTP port (default: 8000, Heroku sets $PORT automatically)
+# - NITAN_TOKEN: Bearer token for MCP auth (streamable-http only, optional)
 # - USCARDFORUM_URL: Forum base URL (default: https://www.uscardforum.com)
 # - USCARDFORUM_TIMEOUT: Request timeout in seconds (default: 15.0)
 # - NITAN_USERNAME: Optional forum auto-login username
 # - NITAN_PASSWORD: Optional forum auto-login password
 #
 # Set sensitive variables via CLI:
+#   heroku config:set NITAN_TOKEN=your-secret-token
 #   heroku config:set NITAN_USERNAME=your-username
 #   heroku config:set NITAN_PASSWORD=your-password

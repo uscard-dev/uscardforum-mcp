@@ -65,3 +65,44 @@ class TestServerInstructions:
         assert "USCardForum MCP 服务器" in SERVER_INSTRUCTIONS
         assert "核心概念" in SERVER_INSTRUCTIONS
         assert "最佳实践" in SERVER_INSTRUCTIONS
+
+
+class TestStaticTokenVerifier:
+    """Tests for StaticTokenVerifier."""
+
+    def test_verify_token_valid(self):
+        """Test that valid token returns AccessToken."""
+        import asyncio
+
+        from uscardforum.server_core import StaticTokenVerifier
+
+        verifier = StaticTokenVerifier("my-secret-token")
+        result = asyncio.run(verifier.verify_token("my-secret-token"))
+
+        assert result is not None
+        assert result.token == "my-secret-token"
+        assert result.client_id == "nitan-user"
+        assert "read" in result.scopes
+        assert "write" in result.scopes
+
+    def test_verify_token_invalid(self):
+        """Test that invalid token returns None."""
+        import asyncio
+
+        from uscardforum.server_core import StaticTokenVerifier
+
+        verifier = StaticTokenVerifier("my-secret-token")
+        result = asyncio.run(verifier.verify_token("wrong-token"))
+
+        assert result is None
+
+    def test_verify_token_empty(self):
+        """Test that empty token returns None."""
+        import asyncio
+
+        from uscardforum.server_core import StaticTokenVerifier
+
+        verifier = StaticTokenVerifier("my-secret-token")
+        result = asyncio.run(verifier.verify_token(""))
+
+        assert result is None

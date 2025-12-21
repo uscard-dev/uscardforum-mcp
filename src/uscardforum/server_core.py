@@ -4,9 +4,27 @@ from __future__ import annotations
 import os
 from typing import Literal
 
+from mcp.server.auth.provider import AccessToken, TokenVerifier
 from mcp.server.fastmcp import FastMCP
 
 from uscardforum.client import DiscourseClient
+
+
+class StaticTokenVerifier(TokenVerifier):
+    """Token verifier that checks against a static token from environment."""
+
+    def __init__(self, expected_token: str) -> None:
+        self._expected_token = expected_token
+
+    async def verify_token(self, token: str) -> AccessToken | None:
+        """Verify a bearer token against the expected NITAN_TOKEN."""
+        if token == self._expected_token:
+            return AccessToken(
+                token=token,
+                client_id="nitan-user",
+                scopes=["read", "write"],
+            )
+        return None
 
 # =============================================================================
 # Server Configuration
@@ -84,12 +102,21 @@ USCardForum 的主要分类包括：
 - **始终使用中文回复**
 """
 
+# Token for streamable-http authentication (optional)
+NITAN_TOKEN = os.environ.get("NITAN_TOKEN")
+
+# Create token verifier if NITAN_TOKEN is set and using streamable-http
+_token_verifier: TokenVerifier | None = None
+if NITAN_TOKEN and MCP_TRANSPORT == "streamable-http":
+    _token_verifier = StaticTokenVerifier(NITAN_TOKEN)
+
 # Initialize FastMCP server with instructions and HTTP settings
 mcp = FastMCP(
     name="uscardforum",
     instructions=SERVER_INSTRUCTIONS,
     host=MCP_HOST,
     port=MCP_PORT,
+    token_verifier=_token_verifier,
 )
 
 # Global client instance
@@ -136,6 +163,8 @@ def main() -> None:
     if MCP_TRANSPORT in ("sse", "streamable-http"):
         print(f"[uscardforum] Starting MCP server on http://{MCP_HOST}:{MCP_PORT}")
         print(f"[uscardforum] Transport: {MCP_TRANSPORT}")
+        if NITAN_TOKEN and MCP_TRANSPORT == "streamable-http":
+            print("[uscardforum] Authentication: Bearer token required (NITAN_TOKEN)")
     mcp.run(transport=MCP_TRANSPORT)
 
 
@@ -144,6 +173,7 @@ __all__ = [
     "MCP_HOST",
     "MCP_PORT",
     "MCP_TRANSPORT",
+    "NITAN_TOKEN",
     "SERVER_INSTRUCTIONS",
     "get_client",
     "main",

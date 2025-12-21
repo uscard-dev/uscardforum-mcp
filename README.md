@@ -93,6 +93,7 @@ uscardforum
 | `MCP_TRANSPORT` | `stdio` | Transport mode: `stdio`, `sse`, or `streamable-http` |
 | `MCP_HOST` | `0.0.0.0` | HTTP server host (for `sse`/`streamable-http`) |
 | `MCP_PORT` | `8000` | HTTP server port (for `sse`/`streamable-http`) |
+| `NITAN_TOKEN` | *(none)* | Bearer token for MCP auth (`streamable-http` only) |
 | `USCARDFORUM_URL` | `https://www.uscardforum.com` | Forum base URL |
 | `USCARDFORUM_TIMEOUT` | `15.0` | Request timeout in seconds |
 | `NITAN_USERNAME` | *(none)* | Auto-login username (optional) |
@@ -115,6 +116,20 @@ MCP_TRANSPORT=streamable-http MCP_PORT=8000 uv run uscardforum
 # The MCP endpoint will be available at:
 # http://localhost:8000/mcp
 ```
+
+#### Streamable HTTP Authentication
+
+When using `streamable-http` transport, you can require clients to authenticate with a bearer token by setting `NITAN_TOKEN`:
+
+```bash
+# Start server with authentication required
+MCP_TRANSPORT=streamable-http NITAN_TOKEN=my-secret-token uv run uscardforum
+
+# Clients must include Authorization header:
+# Authorization: Bearer my-secret-token
+```
+
+This is useful for securing public deployments. The token is only enforced for `streamable-http` transport; `stdio` and `sse` modes do not use this authentication.
 
 ### Forum Auto-Login
 
@@ -165,7 +180,7 @@ Add to Claude Desktop's config file:
 
 ### One-Click Deploy
 
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/uscardforum/mcp-server)
 
 ### Manual Deployment
 
