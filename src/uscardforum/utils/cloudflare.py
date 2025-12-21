@@ -74,7 +74,6 @@ def _ensure_playwright_browsers() -> bool:
         return True
     
     try:
-        # Check if playwright is importable
         from playwright.sync_api import sync_playwright
     except ImportError:
         logger.warning("Playwright package not installed")
@@ -147,47 +146,55 @@ class CurlCffiSessionWrapper:
     This allows curl_cffi to be used as a drop-in replacement.
     """
     
-    def __init__(self, impersonate: str = "chrome120"):
-        try:
+    def __init__(self, session: Any = None, impersonate: str = "chrome120"):
+        """Initialize wrapper with existing session or create new one.
+        
+        Args:
+            session: Existing curl_cffi Session to wrap (reuses cookies)
+            impersonate: Browser to impersonate if creating new session
+        """
+        if session is not None:
+            self._session = session
+        else:
             from curl_cffi.requests import Session
             self._session = Session(impersonate=impersonate)
-            self._impersonate = impersonate
-            self.headers = dict(BROWSER_HEADERS)
-            self.cookies = self._session.cookies
-        except ImportError:
-            raise ImportError("curl_cffi not available")
+        self._impersonate = impersonate
+        self.headers = dict(BROWSER_HEADERS)
+        self.cookies = self._session.cookies
     
-    def get(self, url: str, **kwargs) -> requests.Response:
-        """Make GET request and convert response to requests-compatible format."""
-        kwargs.setdefault("headers", self.headers)
+    def get(self, url: str, **kwargs) -> Any:
+        """Make GET request."""
         kwargs.setdefault("timeout", 15)
-        resp = self._session.get(url, **kwargs)
-        return self._convert_response(resp)
+        # Merge headers
+        headers = dict(self.headers)
+        if "headers" in kwargs:
+            headers.update(kwargs["headers"])
+        kwargs["headers"] = headers
+        return self._session.get(url, **kwargs)
     
-    def post(self, url: str, **kwargs) -> requests.Response:
-        """Make POST request and convert response to requests-compatible format."""
-        kwargs.setdefault("headers", self.headers)
+    def post(self, url: str, **kwargs) -> Any:
+        """Make POST request."""
         kwargs.setdefault("timeout", 15)
-        resp = self._session.post(url, **kwargs)
-        return self._convert_response(resp)
+        headers = dict(self.headers)
+        if "headers" in kwargs:
+            headers.update(kwargs["headers"])
+        kwargs["headers"] = headers
+        return self._session.post(url, **kwargs)
     
-    def request(self, method: str, url: str, **kwargs) -> requests.Response:
+    def request(self, method: str, url: str, **kwargs) -> Any:
         """Make any HTTP request."""
-        kwargs.setdefault("headers", self.headers)
         kwargs.setdefault("timeout", 15)
-        resp = self._session.request(method, url, **kwargs)
-        return self._convert_response(resp)
-    
-    def _convert_response(self, curl_resp: Any) -> requests.Response:
-        """Convert curl_cffi response to requests.Response-like object."""
-        # curl_cffi responses are already compatible enough
-        return curl_resp
+        headers = dict(self.headers)
+        if "headers" in kwargs:
+            headers.update(kwargs["headers"])
+        kwargs["headers"] = headers
+        return self._session.request(method, url, **kwargs)
 
 
 def _create_session_with_curl_cffi(
     base_url: str,
     timeout_seconds: float = 15.0,
-) -> requests.Session | None:
+) -> Any | None:
     """Create a session using curl_cffi with browser TLS fingerprints.
     
     curl_cffi impersonates real browser TLS fingerprints, which is very
@@ -198,7 +205,7 @@ def _create_session_with_curl_cffi(
         timeout_seconds: Timeout for test requests
         
     Returns:
-        A curl_cffi session wrapper, or None if failed
+        A curl_cffi session wrapper (reusing the session that passed), or None if failed
     """
     try:
         from curl_cffi.requests import Session
@@ -221,9 +228,9 @@ def _create_session_with_curl_cffi(
             
             if test_resp.status_code == 200:
                 logger.info(f"Cloudflare bypass successful with curl_cffi impersonate={impersonate}")
-                # Return wrapped session
-                wrapper = CurlCffiSessionWrapper(impersonate=impersonate)
-                return wrapper  # type: ignore
+                # IMPORTANT: Return wrapper with the SAME session that passed (keeps cookies!)
+                wrapper = CurlCffiSessionWrapper(session=session, impersonate=impersonate)
+                return wrapper
             elif test_resp.status_code == 403:
                 logger.warning(f"curl_cffi {impersonate} got 403, trying next...")
                 continue
@@ -253,16 +260,9 @@ def _create_session_with_playwright(
     Returns:
         A requests.Session with Cloudflare cookies, or None if failed
     """
-    # Ensure browsers are installed
+    # Ensure browsers are installed (this also verifies imports work)
     if not _ensure_playwright_browsers():
         logger.warning("Playwright browsers not available")
-        return None
-    
-    try:
-        from playwright.sync_api import sync_playwright
-        from playwright_stealth import stealth_sync
-    except ImportError:
-        logger.warning("Playwright not available, skipping browser fallback")
         return None
 
     base_url = base_url.rstrip("/")
@@ -270,6 +270,10 @@ def _create_session_with_playwright(
     session.headers.update(BROWSER_HEADERS)
 
     try:
+        # Import here after ensuring browsers are installed
+        from playwright.sync_api import sync_playwright
+        from playwright_stealth import stealth_sync
+        
         with sync_playwright() as p:
             # Launch browser with stealth settings
             browser = p.chromium.launch(
@@ -345,6 +349,9 @@ def _create_session_with_playwright(
                 logger.warning(f"Playwright: Test request got status {test_resp.status_code}")
                 return None
 
+    except ImportError as e:
+        logger.warning(f"Playwright import failed: {e}")
+        return None
     except Exception as e:
         logger.error(f"Playwright fallback failed: {e}")
         return None
@@ -356,7 +363,7 @@ def create_cloudflare_session_with_fallback(
     use_playwright: bool = True,
     use_curl_cffi: bool = True,
     use_cloudscraper: bool = True,
-) -> requests.Session:
+) -> Any:
     """Create a session with Cloudflare bypass, trying multiple strategies.
 
     Order of attempts (Playwright first as most effective):
@@ -393,7 +400,7 @@ def create_cloudflare_session_with_fallback(
         logger.info("Trying curl_cffi with TLS fingerprints...")
         curl_session = _create_session_with_curl_cffi(base_url, timeout_seconds)
         if curl_session is not None:
-            return curl_session  # type: ignore
+            return curl_session
         logger.warning("curl_cffi failed, trying next strategy...")
 
     # Strategy 3: Try cloudscraper with different profiles
@@ -433,7 +440,7 @@ def create_cloudflare_session_with_fallback(
 
 
 def warm_up_session(
-    session: requests.Session,
+    session: Any,
     base_url: str,
     timeout_seconds: float = 15.0,
     with_delay: bool = True,
@@ -472,14 +479,14 @@ def warm_up_session(
             # Add delay between requests
             if with_delay and i < len(warmup_urls) - 1:
                 time.sleep(0.5)
-        except requests.RequestException as e:
+        except Exception as e:
             logger.warning(f"Warm-up failed for {url}: {e}")
 
     return success
 
 
 def extended_warm_up(
-    session: requests.Session,
+    session: Any,
     base_url: str,
     timeout_seconds: float = 15.0,
 ) -> None:
@@ -515,11 +522,11 @@ def extended_warm_up(
             # Add delay between requests to avoid rate limiting
             if i < len(warmup_urls) - 1:
                 time.sleep(0.5)
-        except requests.RequestException as e:
+        except Exception as e:
             logger.warning(f"Warm-up failed for {url}: {e}")
 
 
-def is_cloudflare_challenge(response: requests.Response) -> bool:
+def is_cloudflare_challenge(response: Any) -> bool:
     """Check if a response is a Cloudflare challenge page.
 
     Args:
