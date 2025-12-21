@@ -1,0 +1,40 @@
+{
+  "name": "USCardForum MCP Server",
+  "description": "MCP Server for interacting with USCardForum Discourse API",
+  "keywords": ["mcp", "discourse", "forum", "credit-cards", "python"],
+  "repository": "https://github.com/uscardforum/mcp-server",
+  "stack": "heroku-24",
+  "env": {
+    "MCP_TRANSPORT": {
+      "description": "Transport mode: stdio, sse, or streamable-http",
+      "value": "streamable-http"
+    },
+    "USCARDFORUM_URL": {
+      "description": "Base URL of the forum",
+      "value": "https://www.uscardforum.com"
+    },
+    "USCARDFORUM_TIMEOUT": {
+      "description": "Request timeout in seconds",
+      "value": "15.0"
+    },
+    "NITAN_USERNAME": {
+      "description": "Forum username for auto-login (optional)",
+      "required": false
+    },
+    "NITAN_PASSWORD": {
+      "description": "Forum password for auto-login (optional)",
+      "required": false
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  }
+}
