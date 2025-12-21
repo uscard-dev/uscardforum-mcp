@@ -5,12 +5,16 @@ with Discourse API endpoints.
 """
 from __future__ import annotations
 
+import logging
 from typing import Any, Mapping, Sequence
 
 import backoff
 import requests
 from ratelimit import limits, sleep_and_retry
 
+from uscardforum.utils.cloudflare import CLOUDFLARE_RETRY_CODES, is_cloudflare_challenge
+
+logger = logging.getLogger(__name__)
 
 # Only retry on transient errors, not client errors (4xx)
 RETRYABLE_EXCEPTIONS = (
@@ -21,12 +25,34 @@ RETRYABLE_EXCEPTIONS = (
 
 
 def _is_retryable_status(exc: Exception) -> bool:
-    """Check if an HTTPError should be retried (5xx server errors only)."""
+    """Check if an HTTPError should be retried.
+
+    Retries on:
+    - 5xx server errors
+    - 429 rate limited
+    - 403 Forbidden (might be Cloudflare challenge)
+    - Cloudflare-specific error codes (520-524)
+    """
     if isinstance(exc, requests.exceptions.HTTPError):
         if exc.response is not None:
-            # Retry on 5xx server errors and 429 (rate limited)
-            return exc.response.status_code >= 500 or exc.response.status_code == 429
+            status = exc.response.status_code
+            # Retry on 5xx, 429, 403 (Cloudflare), and Cloudflare-specific codes
+            return status >= 500 or status in CLOUDFLARE_RETRY_CODES
     return True  # Retry other exceptions
+
+
+def _on_backoff(details: dict[str, Any]) -> None:
+    """Log when backing off due to an error."""
+    exc = details.get("exception")
+    wait = details.get("wait", 0)
+    tries = details.get("tries", 0)
+    if exc and isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
+        logger.warning(
+            f"Request failed with status {exc.response.status_code}, "
+            f"retry {tries}, waiting {wait:.1f}s"
+        )
+    else:
+        logger.warning(f"Request failed, retry {tries}, waiting {wait:.1f}s: {exc}")
 
 
 def full_url(base_url: str, path_or_url: str) -> str:
@@ -46,13 +72,15 @@ def full_url(base_url: str, path_or_url: str) -> str:
 
 
 @sleep_and_retry
-@limits(calls=4, period=1)
+@limits(calls=3, period=1)  # Slightly slower rate to avoid Cloudflare triggers
 @backoff.on_exception(
     backoff.expo,
     (requests.exceptions.HTTPError, *RETRYABLE_EXCEPTIONS),
-    max_tries=3,
+    max_tries=5,  # More retries for Cloudflare
     giveup=lambda e: not _is_retryable_status(e),
-    max_time=30,
+    max_time=60,  # Longer max time for challenge solving
+    on_backoff=_on_backoff,
+    factor=2,  # Start with 2 second delay, then 4, 8, etc.
 )
 def request(
     session: requests.Session,
@@ -86,6 +114,10 @@ def request(
         HTTPError: If request fails after retries
     """
     url = full_url(base_url, path_or_url)
+
+    # Add delay before request if we've had Cloudflare issues
+    # (cloudscraper may need time to solve challenges)
+
     resp = session.request(
         method.upper(),
         url,
@@ -95,6 +127,14 @@ def request(
         headers=headers,
         timeout=timeout_seconds,
     )
+
+    # Check for Cloudflare challenge page in HTML response
+    if is_cloudflare_challenge(resp):
+        logger.warning("Detected Cloudflare challenge page, may need retry")
+        # Let cloudscraper handle it on retry
+        resp.status_code = 503  # Force retry
+        resp.raise_for_status()
+
     resp.raise_for_status()
     return resp
 

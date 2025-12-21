@@ -6,7 +6,7 @@ from typing import Any, Mapping, Sequence
 
 import requests
 
-from uscardforum.http import request_json
+from uscardforum.utils.http import request_json
 
 
 class BaseAPI:

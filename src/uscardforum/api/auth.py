@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import time as _time
 from typing import Any, Iterator
 
 import requests
 
 from uscardforum.api.base import BaseAPI
+from uscardforum.utils.cloudflare import warm_up_session
 from uscardforum.models.auth import (
     Bookmark,
     LoginResult,
@@ -16,6 +18,8 @@ from uscardforum.models.auth import (
     Session,
     SubscriptionResult,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AuthAPI(BaseAPI):
@@ -54,25 +58,24 @@ class AuthAPI(BaseAPI):
     # Session Management
     # -------------------------------------------------------------------------
 
-    def warm_up(self) -> None:
+    def warm_up(self, with_delay: bool = True) -> bool:
         """Warm up session to obtain cookies.
 
         Call this before making authenticated requests to ensure
         Cloudflare cookies are obtained.
+
+        Args:
+            with_delay: Add delays between requests for Cloudflare
+
+        Returns:
+            True if warm-up was successful (got 200 on at least one URL)
         """
-        warmup_urls = [
-            f"{self._base_url}/",
-            f"{self._base_url}/about",
-        ]
-        for url in warmup_urls:
-            try:
-                self._session.get(
-                    url,
-                    timeout=self._timeout_seconds,
-                    allow_redirects=True,
-                )
-            except requests.RequestException:
-                pass
+        return warm_up_session(
+            self._session,
+            self._base_url,
+            self._timeout_seconds,
+            with_delay=with_delay,
+        )
 
     def fetch_csrf_token(self) -> str:
         """Get CSRF token for authenticated requests.

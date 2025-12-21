@@ -25,6 +25,12 @@ __version__ = "0.1.0"
 # Main client
 from uscardforum.client import DiscourseClient
 
+# Cloudflare utilities
+from uscardforum.utils.cloudflare import (
+    create_cloudflare_session,
+    create_cloudflare_session_with_fallback,
+)
+
 # Domain models
 from uscardforum.models import (
     # Topics
@@ -59,6 +65,9 @@ __all__ = [
     "__version__",
     # Client
     "DiscourseClient",
+    # Cloudflare utilities
+    "create_cloudflare_session",
+    "create_cloudflare_session_with_fallback",
     # Topic models
     "Topic",
     "TopicSummary",

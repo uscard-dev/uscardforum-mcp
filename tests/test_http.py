@@ -6,7 +6,7 @@ Tests the HTTP functions against the actual USCardForum API.
 
 import pytest
 import cloudscraper
-from uscardforum.http import full_url, request_json, parse_json_or_raise
+from uscardforum.utils.http import full_url, request_json, parse_json_or_raise
 
 
 BASE_URL = "https://www.uscardforum.com"

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from typing import Any, Iterator
 
-import cloudscraper
 import requests
 
 from uscardforum.api.auth import AuthAPI
@@ -15,6 +14,10 @@ from uscardforum.api.categories import CategoriesAPI
 from uscardforum.api.search import SearchAPI
 from uscardforum.api.topics import TopicsAPI
 from uscardforum.api.users import UsersAPI
+from uscardforum.utils.cloudflare import (
+    create_cloudflare_session_with_fallback,
+    extended_warm_up,
+)
 from uscardforum.models.auth import (
     Bookmark,
     LoginResult,
@@ -85,12 +88,12 @@ class DiscourseClient:
         self._base_url = normalized
         self._timeout_seconds = timeout_seconds
 
-        # Create session
+        # Create session with Cloudflare bypass
         if session is not None:
             self._session = session
         else:
-            self._session = cloudscraper.create_scraper(
-                browser={"browser": "chrome", "platform": "linux", "desktop": True}
+            self._session = create_cloudflare_session_with_fallback(
+                normalized, timeout_seconds
             )
 
         # Initialize API modules
@@ -100,8 +103,8 @@ class DiscourseClient:
         self._categories = CategoriesAPI(self._session, normalized, timeout_seconds)
         self._auth = AuthAPI(self._session, normalized, timeout_seconds)
 
-        # Warm up session
-        self._auth.warm_up()
+        # Warm up session with extended strategy
+        extended_warm_up(self._session, normalized, timeout_seconds)
 
     # -------------------------------------------------------------------------
     # Properties
