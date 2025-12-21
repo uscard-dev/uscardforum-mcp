@@ -6,6 +6,7 @@ from typing import Literal
 
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.server import AuthSettings
 
 from uscardforum.client import DiscourseClient
 
@@ -105,10 +106,17 @@ USCardForum 的主要分类包括：
 # Token for streamable-http authentication (optional)
 NITAN_TOKEN = os.environ.get("NITAN_TOKEN")
 
-# Create token verifier if NITAN_TOKEN is set and using streamable-http
+# Create token verifier and auth settings if NITAN_TOKEN is set and using streamable-http
 _token_verifier: TokenVerifier | None = None
+_auth_settings: AuthSettings | None = None
 if NITAN_TOKEN and MCP_TRANSPORT == "streamable-http":
     _token_verifier = StaticTokenVerifier(NITAN_TOKEN)
+    # AuthSettings required when using token_verifier
+    # issuer_url is a placeholder since we use static token verification
+    _auth_settings = AuthSettings(
+        issuer_url="https://uscardforum.com/oauth",  # type: ignore[arg-type]
+        resource_server_url=f"http://{MCP_HOST}:{MCP_PORT}",  # type: ignore[arg-type]
+    )
 
 # Initialize FastMCP server with instructions and HTTP settings
 mcp = FastMCP(
@@ -117,6 +125,7 @@ mcp = FastMCP(
     host=MCP_HOST,
     port=MCP_PORT,
     token_verifier=_token_verifier,
+    auth=_auth_settings,
 )
 
 # Global client instance
