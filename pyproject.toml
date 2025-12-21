@@ -28,6 +28,8 @@ dependencies = [
     "cloudscraper>=1.2.71",
     "ratelimit>=2.2.1",
     "backoff>=2.2.1",
+    "playwright>=1.40.0",
+    "playwright-stealth>=1.0.6",
 ]
 
 [project.optional-dependencies]
@@ -97,6 +99,7 @@ module = [
     "ratelimit.*",
     "backoff.*",
     "mcp.*",
+    "playwright_stealth.*",
 ]
 ignore_missing_imports = true
 

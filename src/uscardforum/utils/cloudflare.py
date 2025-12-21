@@ -1,7 +1,7 @@
 """Cloudflare bypass utilities.
 
 Provides functions and constants for bypassing Cloudflare protection
-using cloudscraper with multiple fallback strategies.
+using cloudscraper with Playwright stealth as fallback.
 """
 from __future__ import annotations
 
@@ -64,23 +64,137 @@ def create_cloudflare_session(
     return session
 
 
+def _create_session_with_playwright(
+    base_url: str,
+    timeout_seconds: float = 30.0,
+    headless: bool = True,
+) -> requests.Session | None:
+    """Create a requests session using cookies obtained from Playwright with stealth.
+
+    Uses a real browser to solve Cloudflare challenges and transfers cookies
+    to a requests session.
+
+    Args:
+        base_url: The base URL to navigate to
+        timeout_seconds: Timeout for page load
+        headless: Run browser in headless mode (default: True)
+
+    Returns:
+        A requests.Session with Cloudflare cookies, or None if failed
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+        from playwright_stealth import stealth_sync
+    except ImportError:
+        logger.warning("Playwright not available, skipping browser fallback")
+        return None
+
+    base_url = base_url.rstrip("/")
+    session = requests.Session()
+    session.headers.update(BROWSER_HEADERS)
+
+    try:
+        with sync_playwright() as p:
+            # Launch browser with stealth settings
+            browser = p.chromium.launch(
+                headless=headless,
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-dev-shm-usage",
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-infobars",
+                    "--window-size=1920,1080",
+                    "--start-maximized",
+                ],
+            )
+
+            # Create context with realistic viewport and user agent
+            context = browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                locale="en-US",
+                timezone_id="America/New_York",
+            )
+
+            page = context.new_page()
+
+            # Apply stealth to avoid detection
+            stealth_sync(page)
+
+            # Navigate to the site and wait for Cloudflare challenge to complete
+            logger.info(f"Playwright: Navigating to {base_url}")
+            page.goto(base_url, wait_until="networkidle", timeout=timeout_seconds * 1000)
+
+            # Wait additional time for any JS challenges
+            page.wait_for_timeout(3000)
+
+            # Check if we got past Cloudflare
+            content = page.content().lower()
+            if "cloudflare" in content and ("challenge" in content or "checking" in content):
+                # Wait longer for challenge to complete
+                logger.info("Playwright: Waiting for Cloudflare challenge...")
+                page.wait_for_timeout(5000)
+
+            # Get cookies from browser
+            cookies = context.cookies()
+            logger.info(f"Playwright: Got {len(cookies)} cookies")
+
+            # Transfer cookies to requests session
+            for cookie in cookies:
+                session.cookies.set(
+                    cookie["name"],
+                    cookie["value"],
+                    domain=cookie.get("domain", ""),
+                    path=cookie.get("path", "/"),
+                )
+
+            # Get the user agent used
+            user_agent = page.evaluate("navigator.userAgent")
+            session.headers["User-Agent"] = user_agent
+
+            browser.close()
+
+            # Test if session works
+            test_resp = session.get(
+                f"{base_url}/",
+                timeout=timeout_seconds,
+                allow_redirects=True,
+            )
+
+            if test_resp.status_code == 200:
+                logger.info("Playwright: Session created successfully")
+                return session
+            else:
+                logger.warning(f"Playwright: Test request got status {test_resp.status_code}")
+                return None
+
+    except Exception as e:
+        logger.error(f"Playwright fallback failed: {e}")
+        return None
+
+
 def create_cloudflare_session_with_fallback(
     base_url: str,
     timeout_seconds: float = 15.0,
+    use_playwright_fallback: bool = True,
 ) -> requests.Session:
     """Create a session with Cloudflare bypass, trying multiple strategies.
 
-    Attempts different browser profiles and configurations until one works.
+    Attempts cloudscraper with different browser profiles first,
+    then falls back to Playwright with stealth if all profiles fail.
 
     Args:
         base_url: The base URL to test against
         timeout_seconds: Timeout for test requests
+        use_playwright_fallback: Use Playwright as final fallback (default: True)
 
     Returns:
-        A cloudscraper session configured to bypass Cloudflare
+        A session configured to bypass Cloudflare
     """
     base_url = base_url.rstrip("/")
 
+    # Try cloudscraper with different profiles first
     for profile in BROWSER_PROFILES:
         try:
             session = cloudscraper.create_scraper(
@@ -96,17 +210,28 @@ def create_cloudflare_session_with_fallback(
                 allow_redirects=True,
             )
             if test_resp.status_code == 200:
-                logger.info(f"Cloudflare bypass successful with profile: {profile}")
+                logger.info(f"Cloudflare bypass successful with cloudscraper profile: {profile}")
                 return session
             elif test_resp.status_code == 403:
-                logger.warning(f"Profile {profile} got 403, trying next...")
+                logger.warning(f"Cloudscraper profile {profile} got 403, trying next...")
                 continue
         except Exception as e:
-            logger.warning(f"Profile {profile} failed: {e}, trying next...")
+            logger.warning(f"Cloudscraper profile {profile} failed: {e}, trying next...")
             continue
 
-    # Fallback: return last session even if it didn't fully work
-    logger.warning("All browser profiles failed, using last session as fallback")
+    # All cloudscraper profiles failed, try Playwright fallback
+    if use_playwright_fallback:
+        logger.info("All cloudscraper profiles failed, trying Playwright with stealth...")
+        playwright_session = _create_session_with_playwright(
+            base_url,
+            timeout_seconds=30.0,  # Give more time for Playwright
+            headless=True,
+        )
+        if playwright_session is not None:
+            return playwright_session
+
+    # Ultimate fallback: return cloudscraper session even if it didn't work
+    logger.warning("All bypass methods failed, using basic cloudscraper as fallback")
     session = cloudscraper.create_scraper(
         browser={"browser": "chrome", "platform": "linux", "desktop": True},
         delay=5,
@@ -232,4 +357,3 @@ def is_cloudflare_error(status_code: int) -> bool:
         True if this is a Cloudflare-related error code
     """
     return status_code in CLOUDFLARE_RETRY_CODES
-
