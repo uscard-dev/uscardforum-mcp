@@ -1,7 +1,10 @@
 """Cloudflare bypass utilities.
 
 Provides functions and constants for bypassing Cloudflare protection
-using cloudscraper with Playwright stealth as fallback.
+using multiple strategies in order:
+1. cloudscraper (multiple browser profiles)
+2. curl_cffi (real browser TLS fingerprints)
+3. Playwright with stealth (real browser fallback)
 """
 from __future__ import annotations
 
@@ -17,13 +20,24 @@ logger = logging.getLogger(__name__)
 # Cloudflare-related status codes that might be worth retrying
 CLOUDFLARE_RETRY_CODES = {403, 429, 503, 520, 521, 522, 523, 524}
 
-# Browser profiles to try in order of preference
+# Browser profiles for cloudscraper
 BROWSER_PROFILES = [
     {"browser": "chrome", "platform": "linux", "desktop": True},
     {"browser": "chrome", "platform": "windows", "desktop": True},
     {"browser": "chrome", "platform": "darwin", "desktop": True},
     {"browser": "firefox", "platform": "linux", "desktop": True},
     {"browser": "firefox", "platform": "windows", "desktop": True},
+]
+
+# curl_cffi browser impersonation profiles (TLS fingerprints)
+CURL_CFFI_IMPERSONATES = [
+    "chrome120",
+    "chrome119",
+    "chrome110",
+    "chrome107",
+    "chrome104",
+    "edge101",
+    "safari15_5",
 ]
 
 # Common headers that make requests look more like a real browser
@@ -62,6 +76,100 @@ def create_cloudflare_session(
     )
     session.headers.update(BROWSER_HEADERS)
     return session
+
+
+class CurlCffiSessionWrapper:
+    """Wrapper to make curl_cffi.Session behave like requests.Session.
+    
+    This allows curl_cffi to be used as a drop-in replacement.
+    """
+    
+    def __init__(self, impersonate: str = "chrome120"):
+        try:
+            from curl_cffi.requests import Session
+            self._session = Session(impersonate=impersonate)
+            self._impersonate = impersonate
+            self.headers = dict(BROWSER_HEADERS)
+            self.cookies = self._session.cookies
+        except ImportError:
+            raise ImportError("curl_cffi not available")
+    
+    def get(self, url: str, **kwargs) -> requests.Response:
+        """Make GET request and convert response to requests-compatible format."""
+        kwargs.setdefault("headers", self.headers)
+        kwargs.setdefault("timeout", 15)
+        resp = self._session.get(url, **kwargs)
+        return self._convert_response(resp)
+    
+    def post(self, url: str, **kwargs) -> requests.Response:
+        """Make POST request and convert response to requests-compatible format."""
+        kwargs.setdefault("headers", self.headers)
+        kwargs.setdefault("timeout", 15)
+        resp = self._session.post(url, **kwargs)
+        return self._convert_response(resp)
+    
+    def request(self, method: str, url: str, **kwargs) -> requests.Response:
+        """Make any HTTP request."""
+        kwargs.setdefault("headers", self.headers)
+        kwargs.setdefault("timeout", 15)
+        resp = self._session.request(method, url, **kwargs)
+        return self._convert_response(resp)
+    
+    def _convert_response(self, curl_resp: Any) -> requests.Response:
+        """Convert curl_cffi response to requests.Response-like object."""
+        # curl_cffi responses are already compatible enough
+        return curl_resp
+
+
+def _create_session_with_curl_cffi(
+    base_url: str,
+    timeout_seconds: float = 15.0,
+) -> requests.Session | None:
+    """Create a session using curl_cffi with browser TLS fingerprints.
+    
+    curl_cffi impersonates real browser TLS fingerprints, which is very
+    effective against Cloudflare's TLS fingerprinting.
+    
+    Args:
+        base_url: The base URL to test against
+        timeout_seconds: Timeout for test requests
+        
+    Returns:
+        A curl_cffi session wrapper, or None if failed
+    """
+    try:
+        from curl_cffi.requests import Session
+    except ImportError:
+        logger.warning("curl_cffi not available, skipping TLS fingerprint bypass")
+        return None
+    
+    base_url = base_url.rstrip("/")
+    
+    for impersonate in CURL_CFFI_IMPERSONATES:
+        try:
+            session = Session(impersonate=impersonate)
+            
+            # Test if this impersonation works
+            test_resp = session.get(
+                f"{base_url}/",
+                timeout=timeout_seconds,
+                allow_redirects=True,
+            )
+            
+            if test_resp.status_code == 200:
+                logger.info(f"Cloudflare bypass successful with curl_cffi impersonate={impersonate}")
+                # Return wrapped session
+                wrapper = CurlCffiSessionWrapper(impersonate=impersonate)
+                return wrapper  # type: ignore
+            elif test_resp.status_code == 403:
+                logger.warning(f"curl_cffi {impersonate} got 403, trying next...")
+                continue
+        except Exception as e:
+            logger.warning(f"curl_cffi {impersonate} failed: {e}, trying next...")
+            continue
+    
+    logger.warning("All curl_cffi impersonations failed")
+    return None
 
 
 def _create_session_with_playwright(
@@ -177,16 +285,20 @@ def _create_session_with_playwright(
 def create_cloudflare_session_with_fallback(
     base_url: str,
     timeout_seconds: float = 15.0,
+    use_curl_cffi: bool = True,
     use_playwright_fallback: bool = True,
 ) -> requests.Session:
     """Create a session with Cloudflare bypass, trying multiple strategies.
 
-    Attempts cloudscraper with different browser profiles first,
-    then falls back to Playwright with stealth if all profiles fail.
+    Order of attempts:
+    1. cloudscraper with different browser profiles
+    2. curl_cffi with real browser TLS fingerprints
+    3. Playwright with stealth (real browser)
 
     Args:
         base_url: The base URL to test against
         timeout_seconds: Timeout for test requests
+        use_curl_cffi: Try curl_cffi before Playwright (default: True)
         use_playwright_fallback: Use Playwright as final fallback (default: True)
 
     Returns:
@@ -194,16 +306,16 @@ def create_cloudflare_session_with_fallback(
     """
     base_url = base_url.rstrip("/")
 
-    # Try cloudscraper with different profiles first
+    # Strategy 1: Try cloudscraper with different profiles
+    logger.info("Trying cloudscraper profiles...")
     for profile in BROWSER_PROFILES:
         try:
             session = cloudscraper.create_scraper(
                 browser=profile,
-                delay=3,  # Add delay for challenge solving
+                delay=3,
             )
             session.headers.update(BROWSER_HEADERS)
 
-            # Test if this profile works
             test_resp = session.get(
                 f"{base_url}/",
                 timeout=timeout_seconds,
@@ -219,12 +331,19 @@ def create_cloudflare_session_with_fallback(
             logger.warning(f"Cloudscraper profile {profile} failed: {e}, trying next...")
             continue
 
-    # All cloudscraper profiles failed, try Playwright fallback
+    # Strategy 2: Try curl_cffi with TLS fingerprinting
+    if use_curl_cffi:
+        logger.info("Cloudscraper failed, trying curl_cffi with TLS fingerprints...")
+        curl_session = _create_session_with_curl_cffi(base_url, timeout_seconds)
+        if curl_session is not None:
+            return curl_session  # type: ignore
+
+    # Strategy 3: Try Playwright with stealth
     if use_playwright_fallback:
-        logger.info("All cloudscraper profiles failed, trying Playwright with stealth...")
+        logger.info("curl_cffi failed, trying Playwright with stealth...")
         playwright_session = _create_session_with_playwright(
             base_url,
-            timeout_seconds=30.0,  # Give more time for Playwright
+            timeout_seconds=30.0,
             headless=True,
         )
         if playwright_session is not None:

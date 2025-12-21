@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# This script runs after Heroku installs dependencies
+# It installs Playwright's Chromium browser for Cloudflare bypass fallback
+
+echo "Installing Playwright browsers..."
+playwright install chromium --with-deps || echo "Playwright browser installation failed (optional fallback)"
+echo "Post-compile complete"
+
