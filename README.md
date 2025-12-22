@@ -298,7 +298,23 @@ fly logs
 
 ### Google Cloud Run
 
-[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run?git_repo=https://github.com/uscard-dev/uscardforum-mcp)
+[![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.svg)](https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/uscard-dev/uscardforum-mcp&cloudshell_tutorial=docs/cloudrun-tutorial.md)
+
+After clicking, run in Cloud Shell:
+
+```bash
+# Deploy to Cloud Run
+gcloud run deploy uscardforum-mcp \
+  --source . \
+  --region us-west1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --port 8000 \
+  --memory 512Mi \
+  --set-env-vars "MCP_TRANSPORT=streamable-http,MCP_HOST=0.0.0.0,MCP_PORT=8000"
+```
+
+Or deploy via CLI:
 
 ```bash
 # Enable required APIs
