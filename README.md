@@ -387,7 +387,7 @@ koyeb app update uscardforum-mcp --env NITAN_TOKEN=@nitan-token
 
 ### Cloudflare Containers
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/uscardforum/mcp-server)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/uscard-dev/uscardforum-mcp)
 
 ---
 
