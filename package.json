@@ -1,0 +1,12 @@
+{
+  "name": "uscardforum-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
+
