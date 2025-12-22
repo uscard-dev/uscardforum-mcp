@@ -6,7 +6,7 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "@cloudflare/containers": "^0.0.1"
+    "@cloudflare/containers": "^0.0.31"
   },
   "devDependencies": {
     "wrangler": "^3.0.0"
