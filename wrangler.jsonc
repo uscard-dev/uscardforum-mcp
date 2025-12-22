@@ -7,10 +7,7 @@
       "class_name": "USCardForumContainer",
       "image": "./Dockerfile",
       "instance_type": "basic",
-      "autoscaling": {
-        "minimum_instances": 1,
-        "cpu_target": 75
-      }
+      "max_instances": 10
     }
   ],
   "durable_objects": {
@@ -21,8 +18,15 @@
       }
     ]
   },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "USCardForumContainer"
+      ]
+    }
+  ],
   "observability": {
     "enabled": true
   }
 }
-
