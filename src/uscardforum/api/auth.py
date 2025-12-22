@@ -46,12 +46,23 @@ class AuthAPI(BaseAPI):
 
     @property
     def logged_in_username(self) -> str | None:
-        """Currently logged-in username."""
-        return self._logged_in_username
+        """Currently logged-in username (lazy-loaded for User API Key mode)."""
+        if self._logged_in_username:
+            return self._logged_in_username
+
+        if "User-Api-Key" in self._session.headers:
+            session = self.get_current_session()
+            if session.current_user:
+                self._logged_in_username = session.current_user.username
+                return self._logged_in_username
+
+        return None
 
     @property
     def is_authenticated(self) -> bool:
         """Whether currently authenticated."""
+        if "User-Api-Key" in self._session.headers:
+            return True
         return self._logged_in_username is not None
 
     # -------------------------------------------------------------------------
@@ -169,9 +180,9 @@ class AuthAPI(BaseAPI):
 
     def _require_auth(self) -> None:
         """Raise if not authenticated."""
-        if not self._logged_in_username:
+        if not self.is_authenticated:
             raise RuntimeError(
-                "Authentication required. Call login(username, password) first."
+                "Authentication required. Set NITAN_API_KEY and NITAN_API_CLIENT_ID, or call login(username, password)."
             )
 
     # -------------------------------------------------------------------------
