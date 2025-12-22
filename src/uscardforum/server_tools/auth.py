@@ -1,6 +1,10 @@
 """MCP tools for authentication and subscriptions."""
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
 from uscardforum.models.auth import (
     Bookmark,
     LoginResult,
@@ -13,9 +17,18 @@ from uscardforum.server_core import get_client, mcp
 
 @mcp.tool()
 def login(
-    username: str,
-    password: str,
-    second_factor_token: str | None = None,
+    username: Annotated[
+        str,
+        Field(description="Your forum username"),
+    ],
+    password: Annotated[
+        str,
+        Field(description="Your forum password"),
+    ],
+    second_factor_token: Annotated[
+        str | None,
+        Field(default=None, description="2FA code if you have 2FA enabled"),
+    ] = None,
 ) -> LoginResult:
     """
     Authenticate with USCardForum credentials.
@@ -64,9 +77,18 @@ def get_current_session() -> Session:
 
 @mcp.tool()
 def get_notifications(
-    since_id: int | None = None,
-    only_unread: bool = False,
-    limit: int | None = None,
+    since_id: Annotated[
+        int | None,
+        Field(default=None, description="Only get notifications newer than this ID"),
+    ] = None,
+    only_unread: Annotated[
+        bool,
+        Field(default=False, description="Only return unread notifications"),
+    ] = False,
+    limit: Annotated[
+        int | None,
+        Field(default=None, description="Maximum number to return"),
+    ] = None,
 ) -> list[Notification]:
     """
     Fetch your notifications. REQUIRES AUTHENTICATION.
@@ -98,11 +120,29 @@ def get_notifications(
 
 @mcp.tool()
 def bookmark_post(
-    post_id: int,
-    name: str | None = None,
-    reminder_type: int | None = None,
-    reminder_at: str | None = None,
-    auto_delete_preference: int | None = 3,
+    post_id: Annotated[
+        int,
+        Field(description="The numeric post ID to bookmark"),
+    ],
+    name: Annotated[
+        str | None,
+        Field(default=None, description="Label/name for the bookmark"),
+    ] = None,
+    reminder_type: Annotated[
+        int | None,
+        Field(default=None, description="Reminder setting"),
+    ] = None,
+    reminder_at: Annotated[
+        str | None,
+        Field(default=None, description="Reminder datetime (ISO format)"),
+    ] = None,
+    auto_delete_preference: Annotated[
+        int | None,
+        Field(
+            default=3,
+            description="When to auto-delete: 0=never, 1=when reminder sent, 2=on click, 3=after 3 days (default)",
+        ),
+    ] = 3,
 ) -> Bookmark:
     """
     Bookmark a post for later reference. REQUIRES AUTHENTICATION.
@@ -135,8 +175,17 @@ def bookmark_post(
 
 @mcp.tool()
 def subscribe_topic(
-    topic_id: int,
-    level: int = 2,
+    topic_id: Annotated[
+        int,
+        Field(description="The topic ID to subscribe to"),
+    ],
+    level: Annotated[
+        int,
+        Field(
+            default=2,
+            description="Notification level: 0=muted, 1=normal, 2=tracking (default), 3=watching",
+        ),
+    ] = 2,
 ) -> SubscriptionResult:
     """
     Set your notification level for a topic. REQUIRES AUTHENTICATION.

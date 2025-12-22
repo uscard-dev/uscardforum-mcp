@@ -1,7 +1,9 @@
 """MCP tools for user profiles and activity."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from uscardforum.models.users import (
     FollowList,
@@ -14,7 +16,12 @@ from uscardforum.server_core import get_client, mcp
 
 
 @mcp.tool()
-def get_user_summary(username: str) -> UserSummary:
+def get_user_summary(
+    username: Annotated[
+        str,
+        Field(description="The user's handle (case-insensitive)"),
+    ],
+) -> UserSummary:
     """
     Fetch a comprehensive summary of a user's profile.
 
@@ -42,8 +49,14 @@ def get_user_summary(username: str) -> UserSummary:
 
 @mcp.tool()
 def get_user_topics(
-    username: str,
-    page: int | None = None,
+    username: Annotated[
+        str,
+        Field(description="The user's handle"),
+    ],
+    page: Annotated[
+        int | None,
+        Field(default=None, description="Page number for pagination"),
+    ] = None,
 ) -> list[dict[str, Any]]:
     """
     Fetch topics created by a specific user.
@@ -72,8 +85,14 @@ def get_user_topics(
 
 @mcp.tool()
 def get_user_replies(
-    username: str,
-    offset: int | None = None,
+    username: Annotated[
+        str,
+        Field(description="The user's handle"),
+    ],
+    offset: Annotated[
+        int | None,
+        Field(default=None, description="Pagination offset (0, 30, 60, ...)"),
+    ] = None,
 ) -> list[UserAction]:
     """
     Fetch replies/posts made by a user in other topics.
@@ -101,9 +120,21 @@ def get_user_replies(
 
 @mcp.tool()
 def get_user_actions(
-    username: str,
-    filter: int | None = None,
-    offset: int | None = None,
+    username: Annotated[
+        str,
+        Field(description="The user's handle"),
+    ],
+    filter: Annotated[
+        int | None,
+        Field(
+            default=None,
+            description="Action type filter: 1=likes given, 2=likes received, 4=topics created, 5=replies posted, 6=all posts, 7=mentions",
+        ),
+    ] = None,
+    offset: Annotated[
+        int | None,
+        Field(default=None, description="Pagination offset (0, 30, 60, ...)"),
+    ] = None,
 ) -> list[UserAction]:
     """
     Fetch a user's activity feed with optional filtering.
@@ -129,8 +160,14 @@ def get_user_actions(
 
 @mcp.tool()
 def get_user_badges(
-    username: str,
-    grouped: bool = True,
+    username: Annotated[
+        str,
+        Field(description="The user's handle"),
+    ],
+    grouped: Annotated[
+        bool,
+        Field(default=True, description="Group badges by type (default: True)"),
+    ] = True,
 ) -> UserBadges:
     """
     Fetch badges earned by a user.
@@ -155,8 +192,14 @@ def get_user_badges(
 
 @mcp.tool()
 def get_user_following(
-    username: str,
-    page: int | None = None,
+    username: Annotated[
+        str,
+        Field(description="The user's handle"),
+    ],
+    page: Annotated[
+        int | None,
+        Field(default=None, description="Page number for pagination"),
+    ] = None,
 ) -> FollowList:
     """
     Fetch the list of users that a user follows.
@@ -179,8 +222,14 @@ def get_user_following(
 
 @mcp.tool()
 def get_user_followers(
-    username: str,
-    page: int | None = None,
+    username: Annotated[
+        str,
+        Field(description="The user's handle"),
+    ],
+    page: Annotated[
+        int | None,
+        Field(default=None, description="Page number for pagination"),
+    ] = None,
 ) -> FollowList:
     """
     Fetch the list of users following a specific user.
@@ -201,8 +250,14 @@ def get_user_followers(
 
 @mcp.tool()
 def get_user_reactions(
-    username: str,
-    offset: int | None = None,
+    username: Annotated[
+        str,
+        Field(description="The user's handle"),
+    ],
+    offset: Annotated[
+        int | None,
+        Field(default=None, description="Pagination offset"),
+    ] = None,
 ) -> UserReactions:
     """
     Fetch a user's post reactions (likes, etc.).
@@ -221,8 +276,14 @@ def get_user_reactions(
 
 @mcp.tool()
 def list_users_with_badge(
-    badge_id: int,
-    offset: int | None = None,
+    badge_id: Annotated[
+        int,
+        Field(description="The numeric badge ID"),
+    ],
+    offset: Annotated[
+        int | None,
+        Field(default=None, description="Pagination offset"),
+    ] = None,
 ) -> dict[str, Any]:
     """
     List all users who have earned a specific badge.

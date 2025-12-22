@@ -21,37 +21,56 @@ class TopicsAPI(BaseAPI):
     # Topic Lists
     # -------------------------------------------------------------------------
 
-    def get_hot_topics(self) -> list[TopicSummary]:
+    def get_hot_topics(self, *, page: int | None = None) -> list[TopicSummary]:
         """Fetch currently trending topics.
+
+        Args:
+            page: Page number for pagination (0-indexed, default: 0)
 
         Returns:
             List of hot topic summaries
         """
+        params: dict[str, Any] = {}
+        if page is not None:
+            params["page"] = int(page)
+
         payload = self._get(
             "/hot.json",
+            params=params or None,
             headers={"Accept": "application/json, text/plain, */*"},
         )
         topics = payload.get("topic_list", {}).get("topics", [])
         return [TopicSummary(**t) for t in topics]
 
-    def get_new_topics(self) -> list[TopicSummary]:
+    def get_new_topics(self, *, page: int | None = None) -> list[TopicSummary]:
         """Fetch latest new topics.
+
+        Args:
+            page: Page number for pagination (0-indexed, default: 0)
 
         Returns:
             List of new topic summaries
         """
+        params: dict[str, Any] = {}
+        if page is not None:
+            params["page"] = int(page)
+
         payload = self._get(
             "/latest.json",
+            params=params or None,
             headers={"Accept": "application/json, text/plain, */*"},
         )
         topics = payload.get("topic_list", {}).get("topics", [])
         return [TopicSummary(**t) for t in topics]
 
-    def get_top_topics(self, period: str = "monthly") -> list[TopicSummary]:
+    def get_top_topics(
+        self, period: str = "monthly", *, page: int | None = None
+    ) -> list[TopicSummary]:
         """Fetch top topics for a time period.
 
         Args:
             period: One of 'daily', 'weekly', 'monthly', 'quarterly', 'yearly'
+            page: Page number for pagination (0-indexed, default: 0)
 
         Returns:
             List of top topic summaries
@@ -60,9 +79,13 @@ class TopicsAPI(BaseAPI):
         if period not in allowed:
             raise ValueError(f"period must be one of {sorted(list(allowed))}")
 
+        params: dict[str, Any] = {"period": period}
+        if page is not None:
+            params["page"] = int(page)
+
         payload = self._get(
             "/top.json",
-            params={"period": period},
+            params=params,
             headers={"Accept": "application/json, text/plain, */*"},
         )
         topics = payload.get("topic_list", {}).get("topics", [])

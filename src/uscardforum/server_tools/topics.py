@@ -1,12 +1,21 @@
 """MCP tools for topic discovery and content."""
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
 from uscardforum.models.topics import Post, TopicInfo, TopicSummary
 from uscardforum.server_core import get_client, mcp
 
 
 @mcp.tool()
-def get_hot_topics() -> list[TopicSummary]:
+def get_hot_topics(
+    page: Annotated[
+        int | None,
+        Field(default=None, description="Page number for pagination (0-indexed, default: 0)"),
+    ] = None,
+) -> list[TopicSummary]:
     """
     Fetch currently trending/hot topics from USCardForum.
 
@@ -17,6 +26,9 @@ def get_hot_topics() -> list[TopicSummary]:
     - See what the community is currently discussing
     - Find breaking news or time-sensitive opportunities
     - Discover popular ongoing discussions
+
+    Args:
+        page: Page number for pagination (0-indexed). Use page=1 to get more topics.
 
     Returns a list of TopicSummary objects with fields:
     - id: Topic ID (use with get_topic_posts)
@@ -31,11 +43,16 @@ def get_hot_topics() -> list[TopicSummary]:
     A topic with high views but low posts may be informational.
     A topic with many recent posts is actively being discussed.
     """
-    return get_client().get_hot_topics()
+    return get_client().get_hot_topics(page=page)
 
 
 @mcp.tool()
-def get_new_topics() -> list[TopicSummary]:
+def get_new_topics(
+    page: Annotated[
+        int | None,
+        Field(default=None, description="Page number for pagination (0-indexed, default: 0)"),
+    ] = None,
+) -> list[TopicSummary]:
     """
     Fetch the latest/newest topics from USCardForum.
 
@@ -47,6 +64,9 @@ def get_new_topics() -> list[TopicSummary]:
     - See fresh questions from the community
     - Discover emerging discussions before they get popular
 
+    Args:
+        page: Page number for pagination (0-indexed). Use page=1 to get more topics.
+
     Returns a list of TopicSummary objects with:
     - id: Topic ID
     - title: Topic title
@@ -56,11 +76,23 @@ def get_new_topics() -> list[TopicSummary]:
 
     Tip: New topics with high view counts may indicate important news.
     """
-    return get_client().get_new_topics()
+    return get_client().get_new_topics(page=page)
 
 
 @mcp.tool()
-def get_top_topics(period: str = "monthly") -> list[TopicSummary]:
+def get_top_topics(
+    period: Annotated[
+        str,
+        Field(
+            default="monthly",
+            description="Time window for ranking: 'daily', 'weekly', 'monthly' (default), 'quarterly', or 'yearly'",
+        ),
+    ] = "monthly",
+    page: Annotated[
+        int | None,
+        Field(default=None, description="Page number for pagination (0-indexed, default: 0)"),
+    ] = None,
+) -> list[TopicSummary]:
     """
     Fetch top-performing topics for a specific time period.
 
@@ -71,6 +103,7 @@ def get_top_topics(period: str = "monthly") -> list[TopicSummary]:
             - "monthly": Top topics this month (default)
             - "quarterly": Top topics this quarter
             - "yearly": Top topics this year
+        page: Page number for pagination (0-indexed). Use page=1 to get more topics.
 
     Use this to:
     - Find the most valuable discussions in a time range
@@ -82,11 +115,16 @@ def get_top_topics(period: str = "monthly") -> list[TopicSummary]:
     Example: Use "yearly" to find the most impactful discussions,
     or "daily" to see what's trending today.
     """
-    return get_client().get_top_topics(period=period)
+    return get_client().get_top_topics(period=period, page=page)
 
 
 @mcp.tool()
-def get_topic_info(topic_id: int) -> TopicInfo:
+def get_topic_info(
+    topic_id: Annotated[
+        int,
+        Field(description="The numeric topic ID (from URLs like /t/slug/12345)"),
+    ],
+) -> TopicInfo:
     """
     Get metadata about a specific topic without fetching all posts.
 
@@ -115,9 +153,18 @@ def get_topic_info(topic_id: int) -> TopicInfo:
 
 @mcp.tool()
 def get_topic_posts(
-    topic_id: int,
-    post_number: int = 1,
-    include_raw: bool = False,
+    topic_id: Annotated[
+        int,
+        Field(description="The numeric topic ID"),
+    ],
+    post_number: Annotated[
+        int,
+        Field(default=1, description="Which post number to start from (default: 1 = first post)"),
+    ] = 1,
+    include_raw: Annotated[
+        bool,
+        Field(default=False, description="Include raw markdown source (default: False, returns HTML)"),
+    ] = False,
 ) -> list[Post]:
     """
     Fetch a batch of posts from a topic starting at a specific position.
@@ -153,11 +200,26 @@ def get_topic_posts(
 
 @mcp.tool()
 def get_all_topic_posts(
-    topic_id: int,
-    include_raw: bool = False,
-    start_post_number: int = 1,
-    end_post_number: int | None = None,
-    max_posts: int | None = None,
+    topic_id: Annotated[
+        int,
+        Field(description="The numeric topic ID"),
+    ],
+    include_raw: Annotated[
+        bool,
+        Field(default=False, description="Include markdown source (default: False)"),
+    ] = False,
+    start_post_number: Annotated[
+        int,
+        Field(default=1, description="First post to fetch (default: 1)"),
+    ] = 1,
+    end_post_number: Annotated[
+        int | None,
+        Field(default=None, description="Last post to fetch (optional, fetches to end if not set)"),
+    ] = None,
+    max_posts: Annotated[
+        int | None,
+        Field(default=None, description="Maximum number of posts to return (optional safety limit)"),
+    ] = None,
 ) -> list[Post]:
     """
     Fetch all posts from a topic with automatic pagination.

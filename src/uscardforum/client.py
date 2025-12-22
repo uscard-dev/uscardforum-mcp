@@ -129,32 +129,41 @@ class DiscourseClient:
     # Topic Methods
     # -------------------------------------------------------------------------
 
-    def get_hot_topics(self) -> list[TopicSummary]:
+    def get_hot_topics(self, *, page: int | None = None) -> list[TopicSummary]:
         """Fetch currently hot/trending topics.
+
+        Args:
+            page: Page number for pagination (0-indexed, default: 0)
 
         Returns:
             List of hot topic summaries
         """
-        return self._topics.get_hot_topics()
+        return self._topics.get_hot_topics(page=page)
 
-    def get_new_topics(self) -> list[TopicSummary]:
+    def get_new_topics(self, *, page: int | None = None) -> list[TopicSummary]:
         """Fetch latest new topics.
+
+        Args:
+            page: Page number for pagination (0-indexed, default: 0)
 
         Returns:
             List of new topic summaries
         """
-        return self._topics.get_new_topics()
+        return self._topics.get_new_topics(page=page)
 
-    def get_top_topics(self, period: str = "monthly") -> list[TopicSummary]:
+    def get_top_topics(
+        self, period: str = "monthly", *, page: int | None = None
+    ) -> list[TopicSummary]:
         """Fetch top topics for a time period.
 
         Args:
             period: One of 'daily', 'weekly', 'monthly', 'quarterly', 'yearly'
+            page: Page number for pagination (0-indexed, default: 0)
 
         Returns:
             List of top topic summaries
         """
-        return self._topics.get_top_topics(period=period)
+        return self._topics.get_top_topics(period=period, page=page)
 
     def get_topic_info(self, topic_id: int) -> TopicInfo:
         """Fetch topic metadata.

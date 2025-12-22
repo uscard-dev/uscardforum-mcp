@@ -1,15 +1,33 @@
 """MCP tools for search operations."""
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
 from uscardforum.models.search import SearchResult
 from uscardforum.server_core import get_client, mcp
 
 
 @mcp.tool()
 def search_forum(
-    query: str,
-    page: int | None = None,
-    order: str | None = None,
+    query: Annotated[
+        str,
+        Field(
+            description="Search query string. Supports operators: 'in:title', '@username', 'category:name', '#tag', 'after:date', 'before:date'"
+        ),
+    ],
+    page: Annotated[
+        int | None,
+        Field(default=None, description="Page number for pagination (starts at 1)"),
+    ] = None,
+    order: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description="Sort order: 'relevance' (default), 'latest', 'views', 'likes', 'activity', or 'posts'",
+        ),
+    ] = None,
 ) -> SearchResult:
     """
     Search USCardForum for topics and posts matching a query.
