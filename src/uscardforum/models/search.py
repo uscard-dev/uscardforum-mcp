@@ -32,6 +32,7 @@ class SearchTopic(BaseModel):
     views: int = Field(0, description="View count")
     like_count: int = Field(0, description="Total likes")
     category_id: int | None = Field(None, description="Category ID")
+    category_name: str | None = Field(None, description="Category name")
     created_at: datetime | None = Field(None, description="Creation time")
 
     class Config:

@@ -199,6 +199,7 @@ The USCardForum MCP Server supports multiple deployment platforms. Choose the on
 | **Google Cloud Run** | Pay-per-use | Auto-scaling to zero | Variable traffic |
 | **DigitalOcean** | $5/mo | Predictable pricing | Self-managed |
 | **Koyeb** | $5/mo | Fast deploys, global edge | Low latency |
+| **Cloudflare** | Free | Global edge network | Edge deployment |
 | **Docker** | Self-hosted | Full control | Privacy-conscious |
 
 ---
@@ -381,6 +382,12 @@ koyeb app create uscardforum-mcp \
 koyeb secrets create nitan-token --value your-secret-token
 koyeb app update uscardforum-mcp --env NITAN_TOKEN=@nitan-token
 ```
+
+---
+
+### Cloudflare Containers
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/uscardforum/mcp-server)
 
 ---
 

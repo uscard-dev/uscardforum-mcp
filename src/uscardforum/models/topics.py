@@ -16,6 +16,7 @@ class TopicSummary(BaseModel):
     views: int = Field(0, description="Total view count")
     like_count: int = Field(0, description="Total likes on the topic")
     category_id: int | None = Field(None, description="Category identifier")
+    category_name: str | None = Field(None, description="Category name")
     created_at: datetime | None = Field(None, description="When topic was created")
     last_posted_at: datetime | None = Field(None, description="Last activity time")
 
@@ -65,6 +66,7 @@ class Topic(BaseModel):
     views: int = Field(0, description="View count")
     like_count: int = Field(0, description="Total likes")
     category_id: int | None = Field(None, description="Category ID")
+    category_name: str | None = Field(None, description="Category name")
     created_at: datetime | None = Field(None, description="Creation time")
     last_posted_at: datetime | None = Field(None, description="Last activity")
     posts: list[Post] = Field(default_factory=list, description="Posts in topic")

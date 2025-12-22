@@ -106,6 +106,35 @@ class DiscourseClient:
         # Warm up session with extended strategy
         extended_warm_up(self._session, normalized, timeout_seconds)
 
+    def _enrich_with_categories(self, objects: list[Any]) -> list[Any]:
+        """Enrich objects with category names using cached map.
+
+        Supports objects with category_id/category_name attributes (like TopicSummary)
+        and dictionaries with category_id key.
+
+        Args:
+            objects: List of objects to enrich
+
+        Returns:
+            Enriched objects
+        """
+        try:
+            category_map = self.get_category_map().categories
+            for obj in objects:
+                # Handle Pydantic models (TopicSummary, SearchTopic)
+                if hasattr(obj, "category_id") and hasattr(obj, "category_name"):
+                    if obj.category_id and obj.category_id in category_map:
+                        obj.category_name = category_map[obj.category_id]
+                # Handle dictionaries
+                elif isinstance(obj, dict):
+                    cat_id = obj.get("category_id")
+                    if cat_id and cat_id in category_map:
+                        obj["category_name"] = category_map[cat_id]
+        except Exception:
+            # Fail gracefully if category map cannot be fetched
+            pass
+        return objects
+
     # -------------------------------------------------------------------------
     # Properties
     # -------------------------------------------------------------------------
@@ -138,7 +167,8 @@ class DiscourseClient:
         Returns:
             List of hot topic summaries
         """
-        return self._topics.get_hot_topics(page=page)
+        topics = self._topics.get_hot_topics(page=page)
+        return self._enrich_with_categories(topics)
 
     def get_new_topics(self, *, page: int | None = None) -> list[TopicSummary]:
         """Fetch latest new topics.
@@ -149,7 +179,8 @@ class DiscourseClient:
         Returns:
             List of new topic summaries
         """
-        return self._topics.get_new_topics(page=page)
+        topics = self._topics.get_new_topics(page=page)
+        return self._enrich_with_categories(topics)
 
     def get_top_topics(
         self, period: str = "monthly", *, page: int | None = None
@@ -163,7 +194,8 @@ class DiscourseClient:
         Returns:
             List of top topic summaries
         """
-        return self._topics.get_top_topics(period=period, page=page)
+        topics = self._topics.get_top_topics(period=period, page=page)
+        return self._enrich_with_categories(topics)
 
     def get_topic_info(self, topic_id: int) -> TopicInfo:
         """Fetch topic metadata.
@@ -247,7 +279,9 @@ class DiscourseClient:
         Returns:
             Search results with posts, topics, and users
         """
-        return self._search.search(query, page=page, order=order)
+        result = self._search.search(query, page=page, order=order)
+        self._enrich_with_categories(result.topics)
+        return result
 
     # -------------------------------------------------------------------------
     # Category Methods
@@ -282,7 +316,10 @@ class DiscourseClient:
         Returns:
             Comprehensive user summary
         """
-        return self._users.get_user_summary(username)
+        summary = self._users.get_user_summary(username)
+        if summary.top_topics:
+            self._enrich_with_categories(summary.top_topics)
+        return summary
 
     def get_user_actions(
         self,
@@ -333,7 +370,8 @@ class DiscourseClient:
         Returns:
             List of topic objects
         """
-        return self._users.get_user_topics(username, page=page)
+        topics = self._users.get_user_topics(username, page=page)
+        return self._enrich_with_categories(topics)
 
     def get_user_badges(
         self,

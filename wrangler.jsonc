@@ -1,0 +1,28 @@
+{
+  "name": "uscardforum-mcp",
+  "main": "worker.js",
+  "compatibility_date": "2024-04-11",
+  "containers": [
+    {
+      "class_name": "USCardForumContainer",
+      "image": "./Dockerfile",
+      "instance_type": "basic",
+      "autoscaling": {
+        "minimum_instances": 1,
+        "cpu_target": 75
+      }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "USCARDFORUM",
+        "class_name": "USCardForumContainer"
+      }
+    ]
+  },
+  "observability": {
+    "enabled": true
+  }
+}
+
