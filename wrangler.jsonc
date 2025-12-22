@@ -1,7 +1,7 @@
 {
   "name": "uscardforum-mcp",
   "main": "worker.js",
-  "compatibility_date": "2024-04-11",
+  "compatibility_date": "2025-10-01",
   "containers": [
     {
       "class_name": "USCardForumContainer",
