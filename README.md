@@ -387,7 +387,18 @@ koyeb app update uscardforum-mcp --env NITAN_TOKEN=@nitan-token
 ### Docker (Self-Hosted)
 
 ```bash
-# Build and run with Docker
+# Pull from Docker Hub (recommended)
+docker pull uscarddev/uscardforum-mcp:latest
+
+# Run the container
+docker run -d \
+  -p 8000:8000 \
+  -e MCP_TRANSPORT=streamable-http \
+  -e NITAN_TOKEN=your-secret-token \
+  --name uscardforum-mcp \
+  uscarddev/uscardforum-mcp:latest
+
+# Or build locally
 docker build -t uscardforum-mcp .
 docker run -d \
   -p 8000:8000 \
@@ -402,6 +413,12 @@ docker compose up -d
 # View logs
 docker compose logs -f
 ```
+
+**Docker Hub**: [`uscarddev/uscardforum-mcp`](https://hub.docker.com/r/uscarddev/uscardforum-mcp)
+
+Available tags:
+- `latest` - Latest stable release
+- `tagname` - Specific version tags
 
 For production with HTTPS, use a reverse proxy like Traefik or nginx. See `docker-compose.yml` for Traefik example.
 
