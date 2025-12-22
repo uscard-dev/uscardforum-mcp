@@ -298,6 +298,8 @@ fly logs
 
 ### Google Cloud Run
 
+[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run?git_repo=https://github.com/uscard-dev/uscardforum-mcp)
+
 ```bash
 # Enable required APIs
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com
