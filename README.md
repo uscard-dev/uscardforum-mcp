@@ -24,30 +24,38 @@ uscardforum/
 ├── src/uscardforum/
 │   ├── __init__.py          # Package exports
 │   ├── client.py            # Main client (composes APIs)
-│   ├── http.py              # HTTP utilities with rate limiting
 │   ├── server.py            # FastMCP server (MCP layer)
+│   ├── server_core.py       # Server configuration
 │   ├── models/              # Domain models (Pydantic)
-│   │   ├── __init__.py      # Model exports
 │   │   ├── topics.py        # Topic, Post, TopicInfo, TopicSummary
 │   │   ├── users.py         # UserSummary, UserAction, Badge, etc.
 │   │   ├── search.py        # SearchResult, SearchPost, SearchTopic
 │   │   ├── categories.py    # Category, CategoryMap
 │   │   └── auth.py          # Session, Notification, Bookmark, etc.
-│   └── api/                 # API modules (backend)
-│       ├── __init__.py      # API exports
-│       ├── base.py          # Base API with HTTP methods
-│       ├── topics.py        # Topic operations
-│       ├── users.py         # User profile operations
-│       ├── search.py        # Search operations
-│       ├── categories.py    # Category operations
-│       └── auth.py          # Authentication operations
+│   ├── api/                 # API modules (backend)
+│   │   ├── base.py          # Base API with HTTP methods
+│   │   ├── topics.py        # Topic operations
+│   │   ├── users.py         # User profile operations
+│   │   ├── search.py        # Search operations
+│   │   └── auth.py          # Authentication operations
+│   ├── server_tools/        # MCP tool definitions
+│   └── utils/               # HTTP and Cloudflare utilities
 ├── tests/                   # Integration tests
-├── pyproject.toml           # UV package configuration
-├── Procfile                 # Heroku process definition
-├── runtime.txt              # Python version for Heroku
-├── heroku.yml               # Heroku app manifest
+├── .github/workflows/       # CI/CD workflows
+│   ├── ci.yml               # Tests, linting, type checking
+│   └── deploy.yml           # Multi-platform deployment
+├── Dockerfile               # Container build
+├── docker-compose.yml       # Local development
+├── fly.toml                 # Fly.io configuration
+├── railway.toml             # Railway configuration
+├── render.yaml              # Render blueprint
+├── koyeb.yaml               # Koyeb configuration
+├── digitalocean-app.yaml    # DigitalOcean App Platform
+├── cloudbuild.yaml          # Google Cloud Build
+├── heroku.yml               # Heroku manifest
 ├── app.json                 # Heroku button config
-└── README.md
+├── Procfile                 # Heroku process
+└── pyproject.toml           # Python package config
 ```
 
 ## Installation
@@ -176,31 +184,251 @@ Add to Claude Desktop's config file:
 }
 ```
 
-## Heroku Deployment
+## Deployment
 
-### One-Click Deploy
+The USCardForum MCP Server supports multiple deployment platforms. Choose the one that best fits your needs.
+
+### Quick Comparison
+
+| Platform | Starting Price | Pros | Best For |
+|----------|----------------|------|----------|
+| **Heroku** | $7/mo | Easy, one-click deploy | Quick start |
+| **Railway** | $5/mo | Simple, GitHub integration | Developers |
+| **Render** | $7/mo | Auto-scaling, free tier | Production |
+| **Fly.io** | $0-5/mo | Edge deployment, generous free tier | Global reach |
+| **Google Cloud Run** | Pay-per-use | Auto-scaling to zero | Variable traffic |
+| **DigitalOcean** | $5/mo | Predictable pricing | Self-managed |
+| **Koyeb** | $5/mo | Fast deploys, global edge | Low latency |
+| **Docker** | Self-hosted | Full control | Privacy-conscious |
+
+---
+
+### Heroku
 
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/uscard-dev/uscardforum-mcp)
 
-### Manual Deployment
-
 ```bash
-# Login to Heroku
+# Manual deployment
 heroku login
-
-# Create app
 heroku create your-app-name
 
-# Optional: Forum auto-login
+# Set environment variables
+heroku config:set NITAN_TOKEN=$(openssl rand -hex 32)
 heroku config:set NITAN_USERNAME=your_username
 heroku config:set NITAN_PASSWORD=your_password
 
 # Deploy
 git push heroku main
-
-# Scale
 heroku ps:scale web=1
 ```
+
+---
+
+### Railway
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/uscardforum-mcp)
+
+```bash
+# Install Railway CLI
+npm i -g @railway/cli
+
+# Login and deploy
+railway login
+railway init
+railway up
+
+# Set environment variables
+railway variables set MCP_TRANSPORT=streamable-http
+railway variables set NITAN_TOKEN=$(openssl rand -hex 32)
+railway variables set NITAN_USERNAME=your_username
+railway variables set NITAN_PASSWORD=your_password
+
+# Open dashboard
+railway open
+```
+
+---
+
+### Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/uscardforum/mcp-server)
+
+1. Connect your GitHub repository to Render
+2. Create a new **Web Service**
+3. Select **Docker** as the runtime
+4. Set environment variables in the dashboard:
+   - `MCP_TRANSPORT=streamable-http`
+   - `NITAN_TOKEN=your-secret-token`
+   - `NITAN_USERNAME=your-username` (optional)
+   - `NITAN_PASSWORD=your-password` (optional)
+
+Or use the blueprint file:
+
+```bash
+# render.yaml is included in the repository
+# Just connect your repo and Render will auto-detect it
+```
+
+---
+
+### Fly.io
+
+```bash
+# Install Fly CLI
+curl -L https://fly.io/install.sh | sh
+
+# Login and launch
+fly auth login
+fly launch --name uscardforum-mcp
+
+# Set secrets
+fly secrets set NITAN_TOKEN=$(openssl rand -hex 32)
+fly secrets set NITAN_USERNAME=your_username
+fly secrets set NITAN_PASSWORD=your_password
+
+# Deploy
+fly deploy
+
+# Check status
+fly status
+fly logs
+```
+
+---
+
+### Google Cloud Run
+
+```bash
+# Enable required APIs
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com
+
+# Deploy directly from source
+gcloud run deploy uscardforum-mcp \
+  --source . \
+  --region us-west1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --port 8000 \
+  --memory 512Mi \
+  --set-env-vars "MCP_TRANSPORT=streamable-http,MCP_HOST=0.0.0.0,MCP_PORT=8000"
+
+# Set secrets (create them first in Secret Manager)
+gcloud run services update uscardforum-mcp \
+  --set-secrets="NITAN_TOKEN=nitan-token:latest"
+```
+
+Or use Cloud Build with the included `cloudbuild.yaml`:
+
+```bash
+gcloud builds submit --config cloudbuild.yaml
+```
+
+---
+
+### DigitalOcean App Platform
+
+```bash
+# Install doctl CLI
+brew install doctl  # or: snap install doctl
+
+# Authenticate
+doctl auth init
+
+# Create app from spec
+doctl apps create --spec digitalocean-app.yaml
+
+# Or deploy via dashboard:
+# 1. Go to https://cloud.digitalocean.com/apps
+# 2. Create App → GitHub → Select repository
+# 3. Configure environment variables
+```
+
+---
+
+### Koyeb
+
+```bash
+# Install Koyeb CLI
+curl -fsSL https://raw.githubusercontent.com/koyeb/koyeb-cli/master/install.sh | sh
+
+# Login and deploy
+koyeb login
+koyeb app create uscardforum-mcp \
+  --docker-image ghcr.io/uscardforum/mcp-server:latest \
+  --ports 8000:http \
+  --env MCP_TRANSPORT=streamable-http \
+  --env MCP_PORT=8000
+
+# Set secrets
+koyeb secrets create nitan-token --value your-secret-token
+koyeb app update uscardforum-mcp --env NITAN_TOKEN=@nitan-token
+```
+
+---
+
+### Docker (Self-Hosted)
+
+```bash
+# Build and run with Docker
+docker build -t uscardforum-mcp .
+docker run -d \
+  -p 8000:8000 \
+  -e MCP_TRANSPORT=streamable-http \
+  -e NITAN_TOKEN=your-secret-token \
+  --name uscardforum-mcp \
+  uscardforum-mcp
+
+# Or use Docker Compose
+docker compose up -d
+
+# View logs
+docker compose logs -f
+```
+
+For production with HTTPS, use a reverse proxy like Traefik or nginx. See `docker-compose.yml` for Traefik example.
+
+---
+
+### Environment Variables Reference
+
+| Variable | Default | Required | Description |
+|----------|---------|----------|-------------|
+| `MCP_TRANSPORT` | `stdio` | ✓ | Set to `streamable-http` for web deployment |
+| `MCP_HOST` | `0.0.0.0` | | HTTP server bind address |
+| `MCP_PORT` | `8000` | | HTTP server port (some platforms override this) |
+| `NITAN_TOKEN` | | | Bearer token for MCP authentication |
+| `USCARDFORUM_URL` | `https://www.uscardforum.com` | | Forum base URL |
+| `USCARDFORUM_TIMEOUT` | `15.0` | | Request timeout in seconds |
+| `NITAN_USERNAME` | | | Forum auto-login username |
+| `NITAN_PASSWORD` | | | Forum auto-login password |
+
+---
+
+### Connecting to Your Deployed Server
+
+After deployment, connect from Cursor or other MCP clients using the streamable HTTP URL:
+
+```json
+{
+  "mcpServers": {
+    "uscardforum": {
+      "url": "https://your-app.fly.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer your-nitan-token"
+      }
+    }
+  }
+}
+```
+
+Replace the URL with your deployment's URL:
+- Heroku: `https://your-app.herokuapp.com/mcp`
+- Railway: `https://your-app.up.railway.app/mcp`
+- Render: `https://your-app.onrender.com/mcp`
+- Fly.io: `https://your-app.fly.dev/mcp`
+- Cloud Run: `https://your-app-xxxxx-uc.a.run.app/mcp`
+- DigitalOcean: `https://your-app.ondigitalocean.app/mcp`
+- Koyeb: `https://your-app.koyeb.app/mcp`
 
 ## Testing
 

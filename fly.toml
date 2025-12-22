@@ -1,0 +1,48 @@
+# Fly.io Configuration for USCardForum MCP Server
+# Deploy: fly launch / fly deploy
+# Docs: https://fly.io/docs/
+
+app = "uscardforum-mcp"
+primary_region = "sjc"  # San Jose (closest to West Coast US)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  MCP_TRANSPORT = "streamable-http"
+  MCP_HOST = "0.0.0.0"
+  USCARDFORUM_URL = "https://www.uscardforum.com"
+  USCARDFORUM_TIMEOUT = "15.0"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[checks]
+  [checks.health]
+    port = 8000
+    type = "http"
+    interval = "30s"
+    timeout = "5s"
+    path = "/health"
+    method = "GET"
+
+# Set secrets via CLI:
+#   fly secrets set NITAN_TOKEN=your-secret-token
+#   fly secrets set NITAN_USERNAME=your-username
+#   fly secrets set NITAN_PASSWORD=your-password
+

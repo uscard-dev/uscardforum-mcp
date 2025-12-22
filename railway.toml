@@ -1,0 +1,20 @@
+# Railway Configuration for USCardForum MCP Server
+# Deploy: Connect GitHub repo or `railway up`
+# Docs: https://docs.railway.app/
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# Environment variables set via Railway dashboard or CLI:
+#   railway variables set MCP_TRANSPORT=streamable-http
+#   railway variables set NITAN_TOKEN=your-secret-token
+#   railway variables set NITAN_USERNAME=your-username
+#   railway variables set NITAN_PASSWORD=your-password
+

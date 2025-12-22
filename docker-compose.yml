@@ -1,0 +1,66 @@
+# Docker Compose for local development and self-hosting
+# Run: docker compose up -d
+# Docs: https://docs.docker.com/compose/
+
+version: "3.9"
+
+services:
+  uscardforum-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: uscardforum-mcp
+    restart: unless-stopped
+    
+    ports:
+      - "8000:8000"
+    
+    environment:
+      # Transport configuration
+      - MCP_TRANSPORT=streamable-http
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8000
+      
+      # Forum settings
+      - USCARDFORUM_URL=https://www.uscardforum.com
+      - USCARDFORUM_TIMEOUT=15.0
+      
+      # Authentication (optional - uncomment to enable)
+      # - NITAN_TOKEN=your-secret-token
+      
+      # Forum auto-login (optional - uncomment to enable)
+      # - NITAN_USERNAME=your-username
+      # - NITAN_PASSWORD=your-password
+    
+    # Or load from .env file
+    # env_file:
+    #   - .env
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+# For production with Traefik reverse proxy:
+# networks:
+#   default:
+#     external: true
+#     name: traefik-public
+# 
+# Add these labels to the service:
+# labels:
+#   - "traefik.enable=true"
+#   - "traefik.http.routers.uscardforum-mcp.rule=Host(`mcp.yourdomain.com`)"
+#   - "traefik.http.routers.uscardforum-mcp.tls.certresolver=letsencrypt"
+#   - "traefik.http.services.uscardforum-mcp.loadbalancer.server.port=8000"
+
