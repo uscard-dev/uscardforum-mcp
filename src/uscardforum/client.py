@@ -76,6 +76,8 @@ class DiscourseClient:
         base_url: str = DEFAULT_BASE_URL,
         timeout_seconds: float = 15.0,
         session: requests.Session | None = None,
+        user_api_key: str | None = None,
+        user_api_client_id: str | None = None,
     ) -> None:
         """Initialize the Discourse client.
 
@@ -83,6 +85,8 @@ class DiscourseClient:
             base_url: Forum base URL (default: https://www.uscardforum.com)
             timeout_seconds: Default request timeout (default: 15.0)
             session: Optional custom requests Session
+            user_api_key: Optional User API Key for authentication
+            user_api_client_id: Optional User API Client ID for authentication
         """
         normalized = base_url.rstrip("/")
         self._base_url = normalized
@@ -94,6 +98,11 @@ class DiscourseClient:
         else:
             self._session = create_cloudflare_session_with_fallback(
                 normalized, timeout_seconds
+            )
+
+        if user_api_key and user_api_client_id:
+            self._session.headers.update(
+                {"User-Api-Key": user_api_key, "User-Api-Client-Id": user_api_client_id}
             )
 
         # Initialize API modules

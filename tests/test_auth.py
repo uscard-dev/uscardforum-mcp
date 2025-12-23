@@ -84,6 +84,22 @@ class TestSessionModel:
         assert isinstance(session.is_authenticated, bool)
 
 
+class TestUserApiKeyAuth:
+    """Test User API Key authentication mode."""
+
+    def test_is_authenticated_with_user_api_key(self, client):
+        """Test is_authenticated returns True when User-Api-Key header is set."""
+        client._session.headers["User-Api-Key"] = "test_api_key"
+
+        assert client.is_authenticated is True
+
+    def test_is_authenticated_with_logged_in_username(self, client):
+        """Test is_authenticated returns True when _logged_in_username is set."""
+        client._logged_in_username = "test_user"
+
+        assert client.is_authenticated is True
+
+
 class TestCurrentUserModel:
     """Test CurrentUser model fields are populated correctly."""
 

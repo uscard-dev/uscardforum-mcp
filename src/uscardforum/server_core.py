@@ -140,13 +140,25 @@ def get_client() -> DiscourseClient:
     if _client is None:
         base_url = os.environ.get("USCARDFORUM_URL", "https://www.uscardforum.com")
         timeout = float(os.environ.get("USCARDFORUM_TIMEOUT", "15.0"))
-        _client = DiscourseClient(base_url=base_url, timeout_seconds=timeout)
 
-        # Auto-login if credentials are provided
-        if not _login_attempted:
+        username = os.environ.get("NITAN_USERNAME")
+        password = os.environ.get("NITAN_PASSWORD")
+        user_api_key = os.environ.get("NITAN_API_KEY")
+        user_api_client_id = os.environ.get("NITAN_API_CLIENT_ID")
+
+        _client = DiscourseClient(
+            base_url=base_url,
+            timeout_seconds=timeout,
+            user_api_key=user_api_key if not (username and password) else None,
+            user_api_client_id=(
+                user_api_client_id if not (username and password) else None
+            ),
+        )
+
+        if _client.is_authenticated:
+            print("[uscardforum] Using User API Key authentication")
+        elif not _login_attempted:
             _login_attempted = True
-            username = os.environ.get("NITAN_USERNAME")
-            password = os.environ.get("NITAN_PASSWORD")
 
             if username and password:
                 try:

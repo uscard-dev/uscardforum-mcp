@@ -104,8 +104,10 @@ uscardforum
 | `NITAN_TOKEN` | *(none)* | Bearer token for MCP auth (`streamable-http` only) |
 | `USCARDFORUM_URL` | `https://www.uscardforum.com` | Forum base URL |
 | `USCARDFORUM_TIMEOUT` | `15.0` | Request timeout in seconds |
-| `NITAN_USERNAME` | *(none)* | Auto-login username (optional) |
-| `NITAN_PASSWORD` | *(none)* | Auto-login password (optional) |
+| `NITAN_USERNAME` | *(none)* | Forum username for auto-login (optional) |
+| `NITAN_PASSWORD` | *(none)* | Forum password for auto-login (optional) |
+| `NITAN_API_KEY` | *(none)* | Discourse User API Key (optional, alternative auth) |
+| `NITAN_API_CLIENT_ID` | *(none)* | Discourse API Client ID (optional, alternative auth) |
 
 ### Transport Modes
 
@@ -139,14 +141,44 @@ MCP_TRANSPORT=streamable-http NITAN_TOKEN=my-secret-token uv run uscardforum
 
 This is useful for securing public deployments. The token is only enforced for `streamable-http` transport; `stdio` and `sse` modes do not use this authentication.
 
-### Forum Auto-Login
+### Forum Authentication
 
-If both `NITAN_USERNAME` and `NITAN_PASSWORD` are set, the server automatically logs into the forum on startup. This enables authenticated features (notifications, bookmarks, subscriptions) without manual login.
+The server supports two authentication methods for accessing authenticated features (notifications, bookmarks, subscriptions):
+
+#### Method 1: Username/Password Login (Priority)
+
+If both `NITAN_USERNAME` and `NITAN_PASSWORD` are set, the server automatically logs into the forum on startup using username/password authentication.
+
+#### Method 2: User API Key
+
+Alternatively, you can use a Discourse User API Key for authentication. This method is used **only when** `NITAN_USERNAME` and `NITAN_PASSWORD` are not provided.
+
+**Environment Variables:**
+- `NITAN_API_KEY`: Your Discourse User API Key
+- `NITAN_API_CLIENT_ID`: Your Discourse API Client ID
+
+**How to obtain a User API Key:**
+See https://github.com/discourse/discourse-mcp?tab=readme-ov-file#obtaining-a-user-api-key
+
+**Usage Example:**
+
+```bash
+# Using User API Key (when username/password are not set)
+export NITAN_API_KEY="your_api_key_here"
+export NITAN_API_CLIENT_ID="your_client_id_here"
+uv run uscardforum
+```
+
+**Authentication Priority:**
+- If `NITAN_USERNAME` and `NITAN_PASSWORD` are set → Username/Password login is used
+- If only `NITAN_API_KEY` and `NITAN_API_CLIENT_ID` are set → User API Key authentication is used
+- If neither is set → Server runs in unauthenticated mode (limited features)
 
 ### Cursor IDE Integration
 
 Add to `~/.cursor/mcp.json`:
 
+**Option 1: Username/Password Authentication**
 ```json
 {
   "mcpServers": {
@@ -162,6 +194,22 @@ Add to `~/.cursor/mcp.json`:
 }
 ```
 
+**Option 2: User API Key Authentication**
+```json
+{
+  "mcpServers": {
+    "uscardforum": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/uscardforum", "run", "uscardforum"],
+      "env": {
+        "NITAN_API_KEY": "your_api_key",
+        "NITAN_API_CLIENT_ID": "your_client_id"
+      }
+    }
+  }
+}
+```
+
 ### Claude Desktop Integration
 
 Add to Claude Desktop's config file:
@@ -169,6 +217,7 @@ Add to Claude Desktop's config file:
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
+**Option 1: Username/Password Authentication**
 ```json
 {
   "mcpServers": {
@@ -178,6 +227,22 @@ Add to Claude Desktop's config file:
       "env": {
         "NITAN_USERNAME": "your_forum_username",
         "NITAN_PASSWORD": "your_forum_password"
+      }
+    }
+  }
+}
+```
+
+**Option 2: User API Key Authentication**
+```json
+{
+  "mcpServers": {
+    "uscardforum": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/uscardforum", "run", "uscardforum"],
+      "env": {
+        "NITAN_API_KEY": "your_api_key",
+        "NITAN_API_CLIENT_ID": "your_client_id"
       }
     }
   }
@@ -441,8 +506,10 @@ For production with HTTPS, use a reverse proxy like Traefik or nginx. See `docke
 | `NITAN_TOKEN` | | | Bearer token for MCP authentication |
 | `USCARDFORUM_URL` | `https://www.uscardforum.com` | | Forum base URL |
 | `USCARDFORUM_TIMEOUT` | `15.0` | | Request timeout in seconds |
-| `NITAN_USERNAME` | | | Forum auto-login username |
-| `NITAN_PASSWORD` | | | Forum auto-login password |
+| `NITAN_USERNAME` | | | Forum username for auto-login (priority method) |
+| `NITAN_PASSWORD` | | | Forum password for auto-login (priority method) |
+| `NITAN_API_KEY` | | | Discourse User API Key (alternative auth) |
+| `NITAN_API_CLIENT_ID` | | | Discourse API Client ID (alternative auth) |
 
 ---
 
