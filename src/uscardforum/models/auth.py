@@ -53,7 +53,7 @@ class Session(BaseModel):
         extra = "ignore"
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> "Session":
+    def from_api_response(cls, data: dict[str, Any]) -> Session:
         """Parse from raw API response."""
         user_data = data.get("current_user") or data.get("user")
         current_user = CurrentUser(**user_data) if user_data else None
@@ -93,7 +93,7 @@ class LoginResult(BaseModel):
     @classmethod
     def from_api_response(
         cls, data: dict[str, Any], username: str
-    ) -> "LoginResult":
+    ) -> LoginResult:
         """Parse from raw API response."""
         if "error" in data:
             return cls(success=False, error=data["error"])

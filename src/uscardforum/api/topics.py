@@ -5,7 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from uscardforum.api.base import BaseAPI
-from uscardforum.models.topics import CreatedPost, CreatedTopic, Post, TopicInfo, TopicSummary
+from uscardforum.models.topics import (
+    CreatedPost,
+    CreatedTopic,
+    Post,
+    TopicInfo,
+    TopicSummary,
+)
 
 
 class TopicsAPI(BaseAPI):
@@ -77,7 +83,7 @@ class TopicsAPI(BaseAPI):
         """
         allowed = {"daily", "weekly", "monthly", "quarterly", "yearly"}
         if period not in allowed:
-            raise ValueError(f"period must be one of {sorted(list(allowed))}")
+            raise ValueError(f"period must be one of {sorted(allowed)}")
 
         params: dict[str, Any] = {"period": period}
         if page is not None:

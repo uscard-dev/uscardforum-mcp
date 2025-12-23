@@ -6,7 +6,8 @@ with Discourse API endpoints.
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 import backoff
 import requests
@@ -67,7 +68,7 @@ def full_url(base_url: str, path_or_url: str) -> str:
     """
     if path_or_url.startswith(("http://", "https://")):
         return path_or_url
-    
+
     return f"{base_url.rstrip('/')}/{path_or_url.lstrip('/')}"
 
 

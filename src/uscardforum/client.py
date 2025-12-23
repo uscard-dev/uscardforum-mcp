@@ -5,7 +5,8 @@ composing all API modules into a unified client.
 """
 from __future__ import annotations
 
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 import requests
 
@@ -14,10 +15,6 @@ from uscardforum.api.categories import CategoriesAPI
 from uscardforum.api.search import SearchAPI
 from uscardforum.api.topics import TopicsAPI
 from uscardforum.api.users import UsersAPI
-from uscardforum.utils.cloudflare import (
-    create_cloudflare_session_with_fallback,
-    extended_warm_up,
-)
 from uscardforum.models.auth import (
     Bookmark,
     LoginResult,
@@ -28,13 +25,23 @@ from uscardforum.models.auth import (
 )
 from uscardforum.models.categories import CategoryMap
 from uscardforum.models.search import SearchResult
-from uscardforum.models.topics import CreatedPost, CreatedTopic, Post, TopicInfo, TopicSummary
+from uscardforum.models.topics import (
+    CreatedPost,
+    CreatedTopic,
+    Post,
+    TopicInfo,
+    TopicSummary,
+)
 from uscardforum.models.users import (
     FollowList,
     UserAction,
     UserBadges,
     UserReactions,
     UserSummary,
+)
+from uscardforum.utils.cloudflare import (
+    create_cloudflare_session_with_fallback,
+    extended_warm_up,
 )
 
 DEFAULT_BASE_URL: str = "https://www.uscardforum.com"

@@ -186,10 +186,10 @@ def main() -> None:
         print(f"[uscardforum] Transport: {MCP_TRANSPORT}")
         if NITAN_TOKEN and MCP_TRANSPORT == "streamable-http":
             print("[uscardforum] Authentication: Bearer token required (NITAN_TOKEN)")
-    
+
     # Initialize client and perform auto-login before starting the server
     get_client()
-    
+
     mcp.run(transport=MCP_TRANSPORT)
 
 

@@ -60,7 +60,7 @@ class SearchAPI(BaseAPI):
             ord_value = order.split(":", 1)[-1] if "order:" in order else order
             if ord_value not in self.ALLOWED_ORDERS:
                 raise ValueError(
-                    f"order must be one of {sorted(list(self.ALLOWED_ORDERS))}"
+                    f"order must be one of {sorted(self.ALLOWED_ORDERS)}"
                 )
             if "order:" not in q:
                 q = f"{q} order:{ord_value}"

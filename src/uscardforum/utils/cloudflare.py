@@ -65,27 +65,27 @@ BROWSER_HEADERS = {
 
 def _ensure_playwright_browsers(skip_install: bool = False) -> bool:
     """Ensure Playwright browsers are installed.
-    
+
     Attempts to install Chromium if not already installed.
     Only tries once per process to avoid repeated installation attempts.
-    
+
     Args:
         skip_install: If True, skip browser installation attempts (for tests/CI)
-    
+
     Returns:
         True if browsers are available, False otherwise
     """
     global _playwright_browsers_installed
-    
+
     if _playwright_browsers_installed:
         return True
-    
+
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
         logger.warning("Playwright package not installed")
         return False
-    
+
     # Try to launch browser to check if it's installed
     try:
         with sync_playwright() as p:
@@ -99,7 +99,7 @@ def _ensure_playwright_browsers(skip_install: bool = False) -> bool:
         if skip_install:
             logger.info("Skipping browser installation (skip_install=True)")
             return False
-    
+
     # Try to install browsers
     try:
         logger.info("Installing Playwright Chromium browser...")
@@ -152,13 +152,13 @@ def create_cloudflare_session(
 
 class CurlCffiSessionWrapper:
     """Wrapper to make curl_cffi.Session behave like requests.Session.
-    
+
     This allows curl_cffi to be used as a drop-in replacement.
     """
-    
+
     def __init__(self, session: Any = None, impersonate: str = "chrome120"):
         """Initialize wrapper with existing session or create new one.
-        
+
         Args:
             session: Existing curl_cffi Session to wrap (reuses cookies)
             impersonate: Browser to impersonate if creating new session
@@ -171,7 +171,7 @@ class CurlCffiSessionWrapper:
         self._impersonate = impersonate
         self.headers = dict(BROWSER_HEADERS)
         self.cookies = self._session.cookies
-    
+
     def get(self, url: str, **kwargs) -> Any:
         """Make GET request."""
         kwargs.setdefault("timeout", 15)
@@ -181,7 +181,7 @@ class CurlCffiSessionWrapper:
             headers.update(kwargs["headers"])
         kwargs["headers"] = headers
         return self._session.get(url, **kwargs)
-    
+
     def post(self, url: str, **kwargs) -> Any:
         """Make POST request."""
         kwargs.setdefault("timeout", 15)
@@ -190,7 +190,7 @@ class CurlCffiSessionWrapper:
             headers.update(kwargs["headers"])
         kwargs["headers"] = headers
         return self._session.post(url, **kwargs)
-    
+
     def request(self, method: str, url: str, **kwargs) -> Any:
         """Make any HTTP request."""
         kwargs.setdefault("timeout", 15)
@@ -206,14 +206,14 @@ def _create_session_with_curl_cffi(
     timeout_seconds: float = 15.0,
 ) -> Any | None:
     """Create a session using curl_cffi with browser TLS fingerprints.
-    
+
     curl_cffi impersonates real browser TLS fingerprints, which is very
     effective against Cloudflare's TLS fingerprinting.
-    
+
     Args:
         base_url: The base URL to test against
         timeout_seconds: Timeout for test requests
-        
+
     Returns:
         A curl_cffi session wrapper (reusing the session that passed), or None if failed
     """
@@ -222,20 +222,20 @@ def _create_session_with_curl_cffi(
     except ImportError:
         logger.warning("curl_cffi not available, skipping TLS fingerprint bypass")
         return None
-    
+
     base_url = base_url.rstrip("/")
-    
+
     for impersonate in CURL_CFFI_IMPERSONATES:
         try:
             session = Session(impersonate=impersonate)
-            
+
             # Test if this impersonation works
             test_resp = session.get(
                 f"{base_url}/",
                 timeout=timeout_seconds,
                 allow_redirects=True,
             )
-            
+
             if test_resp.status_code == 200:
                 logger.info(f"Cloudflare bypass successful with curl_cffi impersonate={impersonate}")
                 # IMPORTANT: Return wrapper with the SAME session that passed (keeps cookies!)
@@ -247,7 +247,7 @@ def _create_session_with_curl_cffi(
         except Exception as e:
             logger.warning(f"curl_cffi {impersonate} failed: {e}, trying next...")
             continue
-    
+
     logger.warning("All curl_cffi impersonations failed")
     return None
 
@@ -285,9 +285,9 @@ def _create_session_with_playwright(
         # Import here after ensuring browsers are installed
         from playwright.sync_api import sync_playwright
         from playwright_stealth import Stealth
-        
+
         stealth = Stealth()
-        
+
         with sync_playwright() as p:
             # Launch browser with stealth settings
             browser = p.chromium.launch(

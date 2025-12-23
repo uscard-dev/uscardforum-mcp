@@ -80,7 +80,7 @@ class SearchResult(BaseModel):
         extra = "ignore"
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> "SearchResult":
+    def from_api_response(cls, data: dict[str, Any]) -> SearchResult:
         """Parse from raw API response."""
         posts = [SearchPost(**p) for p in data.get("posts", [])]
         topics = [SearchTopic(**t) for t in data.get("topics", [])]

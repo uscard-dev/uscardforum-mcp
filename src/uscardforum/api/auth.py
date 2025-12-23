@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import logging
 import time as _time
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 import requests
 
 from uscardforum.api.base import BaseAPI
-from uscardforum.utils.cloudflare import warm_up_session
 from uscardforum.models.auth import (
     Bookmark,
     LoginResult,
@@ -18,6 +18,7 @@ from uscardforum.models.auth import (
     Session,
     SubscriptionResult,
 )
+from uscardforum.utils.cloudflare import warm_up_session
 
 logger = logging.getLogger(__name__)
 

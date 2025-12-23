@@ -87,7 +87,7 @@ class CreatedTopic(BaseModel):
         extra = "ignore"
 
     @classmethod
-    def from_api_response(cls, data: dict) -> "CreatedTopic":
+    def from_api_response(cls, data: dict) -> CreatedTopic:
         """Parse API response into CreatedTopic."""
         return cls(
             topic_id=data.get("topic_id", 0),
@@ -109,7 +109,7 @@ class CreatedPost(BaseModel):
         extra = "ignore"
 
     @classmethod
-    def from_api_response(cls, data: dict) -> "CreatedPost":
+    def from_api_response(cls, data: dict) -> CreatedPost:
         """Parse API response into CreatedPost."""
         return cls(
             post_id=data.get("id", 0),

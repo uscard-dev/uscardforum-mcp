@@ -25,39 +25,39 @@ __version__ = "0.1.0"
 # Main client
 from uscardforum.client import DiscourseClient
 
+# Domain models
+from uscardforum.models import (
+    Badge,
+    BadgeInfo,
+    Bookmark,
+    # Categories
+    Category,
+    FollowList,
+    LoginResult,
+    Notification,
+    Post,
+    SearchPost,
+    # Search
+    SearchResult,
+    SearchTopic,
+    # Auth
+    Session,
+    SubscriptionResult,
+    # Topics
+    Topic,
+    TopicInfo,
+    TopicSummary,
+    UserAction,
+    UserBadges,
+    UserReactions,
+    # Users
+    UserSummary,
+)
+
 # Cloudflare utilities
 from uscardforum.utils.cloudflare import (
     create_cloudflare_session,
     create_cloudflare_session_with_fallback,
-)
-
-# Domain models
-from uscardforum.models import (
-    # Topics
-    Topic,
-    TopicSummary,
-    TopicInfo,
-    Post,
-    # Users
-    UserSummary,
-    UserAction,
-    Badge,
-    BadgeInfo,
-    UserBadges,
-    UserReactions,
-    FollowList,
-    # Search
-    SearchResult,
-    SearchPost,
-    SearchTopic,
-    # Categories
-    Category,
-    # Auth
-    Session,
-    Notification,
-    Bookmark,
-    LoginResult,
-    SubscriptionResult,
 )
 
 __all__ = [
