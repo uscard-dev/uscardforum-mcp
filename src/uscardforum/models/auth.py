@@ -96,10 +96,10 @@ class LoginResult(BaseModel):
     ) -> LoginResult:
         """Parse from raw API response."""
         if "error" in data:
-            return cls(success=False, error=data["error"])
+            return cls(success=False, error=data["error"], username=None, requires_2fa=False)
         if data.get("second_factor_required"):
-            return cls(success=False, requires_2fa=True, username=username)
-        return cls(success=True, username=username)
+            return cls(success=False, requires_2fa=True, username=username, error=None)
+        return cls(success=True, username=username, error=None, requires_2fa=False)
 
 
 class Bookmark(BaseModel):

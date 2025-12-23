@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from uscardforum.api.base import BaseAPI
 from uscardforum.models.categories import Category, CategoryMap
 
@@ -14,7 +16,7 @@ class CategoriesAPI(BaseAPI):
     - Category ID to name mapping
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._category_cache: dict[int, str] | None = None
 
@@ -36,6 +38,7 @@ class CategoriesAPI(BaseAPI):
                 description=cat.get("description"),
                 topic_count=cat.get("topic_count", 0),
                 post_count=cat.get("post_count", 0),
+                parent_category_id=None,
                 color=cat.get("color"),
             ))
 

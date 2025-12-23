@@ -142,12 +142,12 @@ def create_cloudflare_session(
     Returns:
         A cloudscraper session ready for Cloudflare-protected sites
     """
-    session = cloudscraper.create_scraper(
+    session: Any = cloudscraper.create_scraper(
         browser={"browser": browser, "platform": platform, "desktop": True},
         delay=delay,
     )
     session.headers.update(BROWSER_HEADERS)
-    return session
+    return session  # type: ignore[no-any-return]
 
 
 class CurlCffiSessionWrapper:
@@ -167,12 +167,12 @@ class CurlCffiSessionWrapper:
             self._session = session
         else:
             from curl_cffi.requests import Session
-            self._session = Session(impersonate=impersonate)
+            self._session = Session(impersonate=impersonate)  # type: ignore[arg-type]
         self._impersonate = impersonate
         self.headers = dict(BROWSER_HEADERS)
         self.cookies = self._session.cookies
 
-    def get(self, url: str, **kwargs) -> Any:
+    def get(self, url: str, **kwargs: Any) -> Any:
         """Make GET request."""
         kwargs.setdefault("timeout", 15)
         # Merge headers
@@ -182,7 +182,7 @@ class CurlCffiSessionWrapper:
         kwargs["headers"] = headers
         return self._session.get(url, **kwargs)
 
-    def post(self, url: str, **kwargs) -> Any:
+    def post(self, url: str, **kwargs: Any) -> Any:
         """Make POST request."""
         kwargs.setdefault("timeout", 15)
         headers = dict(self.headers)
@@ -191,7 +191,7 @@ class CurlCffiSessionWrapper:
         kwargs["headers"] = headers
         return self._session.post(url, **kwargs)
 
-    def request(self, method: str, url: str, **kwargs) -> Any:
+    def request(self, method: str, url: str, **kwargs: Any) -> Any:
         """Make any HTTP request."""
         kwargs.setdefault("timeout", 15)
         headers = dict(self.headers)
@@ -227,7 +227,7 @@ def _create_session_with_curl_cffi(
 
     for impersonate in CURL_CFFI_IMPERSONATES:
         try:
-            session = Session(impersonate=impersonate)
+            session: Any = Session(impersonate=impersonate)  # type: ignore[arg-type]
 
             # Test if this impersonation works
             test_resp = session.get(

@@ -35,7 +35,7 @@ class AuthAPI(BaseAPI):
     - Topic subscriptions
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._csrf_token: str | None = None
         self._logged_in_username: str | None = None
@@ -99,12 +99,12 @@ class AuthAPI(BaseAPI):
             RuntimeError: If token cannot be obtained
         """
         payload = self._get("/session/csrf.json")
-        token = payload.get("csrf")
+        token: str | None = payload.get("csrf")
         if not token:
             raise RuntimeError("Failed to obtain CSRF token")
         self._csrf_token = token
         self._session.headers["X-CSRF-Token"] = token
-        return token
+        return str(token)
 
     def get_current_session(self) -> Session:
         """Get current session info.
@@ -310,6 +310,7 @@ class AuthAPI(BaseAPI):
             bookmarkable_id=post_id,
             bookmarkable_type="Post",
             name=name,
+            reminder_at=None,
             auto_delete_preference=auto_delete_preference or 3,
         )
 

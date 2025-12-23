@@ -80,7 +80,7 @@ def full_url(base_url: str, path_or_url: str) -> str:
     max_tries=5,  # More retries for Cloudflare
     giveup=lambda e: not _is_retryable_status(e),
     max_time=60,  # Longer max time for challenge solving
-    on_backoff=_on_backoff,
+    on_backoff=_on_backoff,  # type: ignore[arg-type]
     factor=2,  # Start with 2 second delay, then 4, 8, etc.
 )
 def request(
@@ -124,7 +124,7 @@ def request(
         url,
         params=params,
         json=json,
-        data=data,
+        data=data,  # type: ignore[arg-type]
         headers=headers,
         timeout=timeout_seconds,
     )
@@ -153,7 +153,8 @@ def parse_json_or_raise(resp: requests.Response) -> dict[str, Any]:
         RuntimeError: If response is not valid JSON
     """
     try:
-        return resp.json()
+        result: dict[str, Any] = resp.json()
+        return result
     except ValueError as exc:
         ct = resp.headers.get("Content-Type", "")
         snippet = resp.text[:200] if resp.text else "<empty body>"

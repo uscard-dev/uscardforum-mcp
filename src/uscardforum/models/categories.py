@@ -40,7 +40,7 @@ class CategoryMap(BaseModel):
         """Check if category ID exists."""
         return category_id in self.categories
 
-    def items(self):
+    def items(self) -> list[tuple[int, str]]:
         """Iterate over category mappings."""
-        return self.categories.items()
+        return list(self.categories.items())
 

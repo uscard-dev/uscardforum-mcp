@@ -64,6 +64,7 @@ class UsersAPI(BaseAPI):
                 name=b.get("name", ""),
                 description=b.get("description"),
                 granted_at=b.get("granted_at"),
+                badge_type_id=b.get("badge_type_id"),
             ))
 
         return UserSummary(
@@ -147,7 +148,8 @@ class UsersAPI(BaseAPI):
             f"/topics/created-by/{username}.json",
             params=params_list,
         )
-        return payload.get("topic_list", {}).get("topics", [])
+        topics: list[dict[str, Any]] = payload.get("topic_list", {}).get("topics", [])
+        return topics
 
     # -------------------------------------------------------------------------
     # Badges
@@ -180,6 +182,7 @@ class UsersAPI(BaseAPI):
                 name=b.get("name", ""),
                 description=b.get("description"),
                 granted_at=b.get("granted_at"),
+                badge_type_id=b.get("badge_type_id"),
             ))
 
         return UserBadges(badges=badges)
