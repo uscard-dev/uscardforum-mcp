@@ -28,7 +28,7 @@ from uscardforum.models.auth import (
 )
 from uscardforum.models.categories import CategoryMap
 from uscardforum.models.search import SearchResult
-from uscardforum.models.topics import Post, TopicInfo, TopicSummary
+from uscardforum.models.topics import CreatedPost, CreatedTopic, Post, TopicInfo, TopicSummary
 from uscardforum.models.users import (
     FollowList,
     UserAction,
@@ -577,3 +577,60 @@ class DiscourseClient:
             Subscription result
         """
         return self._auth.subscribe_topic(topic_id, level=NotificationLevel(level))
+
+    # -------------------------------------------------------------------------
+    # Write Methods (create topics/posts)
+    # -------------------------------------------------------------------------
+
+    def create_topic(
+        self,
+        title: str,
+        raw: str,
+        category_id: int | None = None,
+        tags: list[str] | None = None,
+    ) -> CreatedTopic:
+        """Create a new topic (requires auth).
+
+        Args:
+            title: Topic title
+            raw: Post content in markdown
+            category_id: Optional category ID
+            tags: Optional list of tags
+
+        Returns:
+            Created topic info with topic_id, slug, and post_id
+        """
+        self._auth._require_auth()
+        csrf_token = self._auth._csrf_token or self._auth.fetch_csrf_token()
+        return self._topics.create_topic(
+            title=title,
+            raw=raw,
+            category_id=category_id,
+            tags=tags,
+            csrf_token=csrf_token,
+        )
+
+    def create_post(
+        self,
+        topic_id: int,
+        raw: str,
+        reply_to_post_number: int | None = None,
+    ) -> CreatedPost:
+        """Create a new post/reply in an existing topic (requires auth).
+
+        Args:
+            topic_id: Topic ID to reply to
+            raw: Post content in markdown
+            reply_to_post_number: Optional post number to reply to
+
+        Returns:
+            Created post info with post_id, post_number, etc.
+        """
+        self._auth._require_auth()
+        csrf_token = self._auth._csrf_token or self._auth.fetch_csrf_token()
+        return self._topics.create_post(
+            topic_id=topic_id,
+            raw=raw,
+            reply_to_post_number=reply_to_post_number,
+            csrf_token=csrf_token,
+        )

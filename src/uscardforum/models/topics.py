@@ -74,3 +74,47 @@ class Topic(BaseModel):
     class Config:
         extra = "ignore"
 
+
+class CreatedTopic(BaseModel):
+    """Response when a new topic is successfully created."""
+
+    topic_id: int = Field(..., description="ID of the created topic")
+    topic_slug: str = Field(..., description="URL slug of the created topic")
+    post_id: int = Field(..., description="ID of the first post in the topic")
+    post_number: int = Field(1, description="Post number (always 1 for new topics)")
+
+    class Config:
+        extra = "ignore"
+
+    @classmethod
+    def from_api_response(cls, data: dict) -> "CreatedTopic":
+        """Parse API response into CreatedTopic."""
+        return cls(
+            topic_id=data.get("topic_id", 0),
+            topic_slug=data.get("topic_slug", ""),
+            post_id=data.get("id", 0),
+            post_number=data.get("post_number", 1),
+        )
+
+
+class CreatedPost(BaseModel):
+    """Response when a new post/reply is successfully created."""
+
+    post_id: int = Field(..., description="ID of the created post")
+    post_number: int = Field(..., description="Position in the topic")
+    topic_id: int = Field(..., description="ID of the topic")
+    topic_slug: str = Field(..., description="URL slug of the topic")
+
+    class Config:
+        extra = "ignore"
+
+    @classmethod
+    def from_api_response(cls, data: dict) -> "CreatedPost":
+        """Parse API response into CreatedPost."""
+        return cls(
+            post_id=data.get("id", 0),
+            post_number=data.get("post_number", 0),
+            topic_id=data.get("topic_id", 0),
+            topic_slug=data.get("topic_slug", ""),
+        )
+

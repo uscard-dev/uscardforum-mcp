@@ -13,7 +13,14 @@ from uscardforum.models.auth import (
 )
 from uscardforum.models.categories import Category
 from uscardforum.models.search import SearchPost, SearchResult, SearchTopic
-from uscardforum.models.topics import Post, Topic, TopicInfo, TopicSummary
+from uscardforum.models.topics import (
+    CreatedPost,
+    CreatedTopic,
+    Post,
+    Topic,
+    TopicInfo,
+    TopicSummary,
+)
 from uscardforum.models.users import (
     Badge,
     BadgeInfo,
@@ -30,6 +37,8 @@ __all__ = [
     "TopicSummary",
     "TopicInfo",
     "Post",
+    "CreatedTopic",
+    "CreatedPost",
     # Users
     "UserSummary",
     "UserAction",

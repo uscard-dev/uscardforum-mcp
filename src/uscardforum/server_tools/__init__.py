@@ -1,7 +1,7 @@
 """
 MCP Tools, Prompts, and Resources for USCardForum.
 
-Tools are organized into 4 logical groups:
+Tools are organized into 5 logical groups:
 
 📰 Discovery (5 tools) — Find content to read
     get_hot_topics, get_new_topics, get_top_topics, search_forum, get_categories
@@ -16,6 +16,9 @@ Tools are organized into 4 logical groups:
 
 🔐 Auth (5 tools) — Authenticated actions (requires login)
     login, get_current_session, get_notifications, bookmark_post, subscribe_topic
+
+✏️ Write (2 tools) — Create content (DISABLED by default, set NITAN_WRITE_ENABLED=true)
+    create_topic, create_post
 """
 from __future__ import annotations
 
@@ -56,6 +59,12 @@ from .auth import (
     bookmark_post,
     subscribe_topic,
 )
+
+# =============================================================================
+# ✏️ Write — Create content (disabled by default)
+# =============================================================================
+# Import write module to trigger conditional tool registration
+from . import write as _write_module
 
 # =============================================================================
 # Prompts & Resources
@@ -101,4 +110,7 @@ __all__ = [
     "resource_hot_topics",
     "resource_new_topics",
 ]
+
+# Add write tools to __all__ if enabled
+__all__.extend(_write_module.__all__)
 

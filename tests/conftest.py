@@ -10,6 +10,10 @@ Required environment variables:
 
 import os
 import pytest
+
+# Skip Playwright browser installation in tests (too slow)
+os.environ.setdefault("NITAN_SKIP_PLAYWRIGHT", "true")
+
 from uscardforum.client import DiscourseClient
 
 

@@ -2,13 +2,14 @@
 
 Provides functions and constants for bypassing Cloudflare protection
 using multiple strategies in order:
-1. Playwright with stealth (real browser - most effective)
+1. cloudscraper (multiple browser profiles - fastest)
 2. curl_cffi (real browser TLS fingerprints)
-3. cloudscraper (multiple browser profiles)
+3. Playwright with stealth (real browser - most effective but slowest)
 """
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 import time
 from typing import Any
@@ -17,6 +18,9 @@ import cloudscraper
 import requests
 
 logger = logging.getLogger(__name__)
+
+# Environment variable to skip Playwright (useful for tests/CI)
+SKIP_PLAYWRIGHT = os.environ.get("NITAN_SKIP_PLAYWRIGHT", "").lower() in ("true", "1", "yes")
 
 # Track if we've already tried to install Playwright browsers
 _playwright_browsers_installed = False
@@ -59,11 +63,14 @@ BROWSER_HEADERS = {
 }
 
 
-def _ensure_playwright_browsers() -> bool:
+def _ensure_playwright_browsers(skip_install: bool = False) -> bool:
     """Ensure Playwright browsers are installed.
     
     Attempts to install Chromium if not already installed.
     Only tries once per process to avoid repeated installation attempts.
+    
+    Args:
+        skip_install: If True, skip browser installation attempts (for tests/CI)
     
     Returns:
         True if browsers are available, False otherwise
@@ -88,7 +95,10 @@ def _ensure_playwright_browsers() -> bool:
             logger.info("Playwright browsers already installed")
             return True
     except Exception as e:
-        logger.info(f"Playwright browsers not installed, attempting installation: {e}")
+        logger.info(f"Playwright browsers not installed: {e}")
+        if skip_install:
+            logger.info("Skipping browser installation (skip_install=True)")
+            return False
     
     # Try to install browsers
     try:
@@ -246,6 +256,7 @@ def _create_session_with_playwright(
     base_url: str,
     timeout_seconds: float = 30.0,
     headless: bool = True,
+    skip_install: bool = False,
 ) -> requests.Session | None:
     """Create a requests session using cookies obtained from Playwright with stealth.
 
@@ -256,12 +267,13 @@ def _create_session_with_playwright(
         base_url: The base URL to navigate to
         timeout_seconds: Timeout for page load
         headless: Run browser in headless mode (default: True)
+        skip_install: Skip browser installation attempts (for tests/CI)
 
     Returns:
         A requests.Session with Cloudflare cookies, or None if failed
     """
     # Ensure browsers are installed (this also verifies imports work)
-    if not _ensure_playwright_browsers():
+    if not _ensure_playwright_browsers(skip_install=skip_install):
         logger.warning("Playwright browsers not available")
         return None
 
@@ -362,52 +374,32 @@ def _create_session_with_playwright(
 def create_cloudflare_session_with_fallback(
     base_url: str,
     timeout_seconds: float = 15.0,
-    use_playwright: bool = True,
-    use_curl_cffi: bool = True,
     use_cloudscraper: bool = True,
+    use_curl_cffi: bool = True,
+    use_playwright: bool = True,
 ) -> Any:
     """Create a session with Cloudflare bypass, trying multiple strategies.
 
-    Order of attempts (Playwright first as most effective):
-    1. Playwright with stealth (real browser - best success rate)
+    Order of attempts (fastest first):
+    1. cloudscraper with different browser profiles (fastest)
     2. curl_cffi with real browser TLS fingerprints
-    3. cloudscraper with different browser profiles
+    3. Playwright with stealth (real browser - most effective but slowest)
 
     Args:
         base_url: The base URL to test against
         timeout_seconds: Timeout for test requests
-        use_playwright: Try Playwright first (default: True)
+        use_cloudscraper: Try cloudscraper first (default: True)
         use_curl_cffi: Try curl_cffi (default: True)
-        use_cloudscraper: Try cloudscraper (default: True)
+        use_playwright: Try Playwright last (default: True)
 
     Returns:
         A session configured to bypass Cloudflare
     """
     base_url = base_url.rstrip("/")
 
-    # Strategy 1: Try Playwright with stealth (most effective)
-    if use_playwright:
-        logger.info("Trying Playwright with stealth (most effective)...")
-        playwright_session = _create_session_with_playwright(
-            base_url,
-            timeout_seconds=30.0,
-            headless=True,
-        )
-        if playwright_session is not None:
-            return playwright_session
-        logger.warning("Playwright failed, trying next strategy...")
-
-    # Strategy 2: Try curl_cffi with TLS fingerprinting
-    if use_curl_cffi:
-        logger.info("Trying curl_cffi with TLS fingerprints...")
-        curl_session = _create_session_with_curl_cffi(base_url, timeout_seconds)
-        if curl_session is not None:
-            return curl_session
-        logger.warning("curl_cffi failed, trying next strategy...")
-
-    # Strategy 3: Try cloudscraper with different profiles
+    # Strategy 1: Try cloudscraper with different profiles (fastest)
     if use_cloudscraper:
-        logger.info("Trying cloudscraper profiles...")
+        logger.info("Trying cloudscraper profiles (fastest)...")
         for profile in BROWSER_PROFILES:
             try:
                 session = cloudscraper.create_scraper(
@@ -430,6 +422,30 @@ def create_cloudflare_session_with_fallback(
             except Exception as e:
                 logger.warning(f"Cloudscraper profile {profile} failed: {e}, trying next...")
                 continue
+        logger.warning("cloudscraper failed, trying next strategy...")
+
+    # Strategy 2: Try curl_cffi with TLS fingerprinting
+    if use_curl_cffi:
+        logger.info("Trying curl_cffi with TLS fingerprints...")
+        curl_session = _create_session_with_curl_cffi(base_url, timeout_seconds)
+        if curl_session is not None:
+            return curl_session
+        logger.warning("curl_cffi failed, trying next strategy...")
+
+    # Strategy 3: Try Playwright with stealth (most effective but slowest)
+    if use_playwright and not SKIP_PLAYWRIGHT:
+        logger.info("Trying Playwright with stealth (most effective)...")
+        playwright_session = _create_session_with_playwright(
+            base_url,
+            timeout_seconds=30.0,
+            headless=True,
+            skip_install=True,  # Never auto-install during session creation
+        )
+        if playwright_session is not None:
+            return playwright_session
+        logger.warning("Playwright failed...")
+    elif SKIP_PLAYWRIGHT:
+        logger.info("Playwright skipped (NITAN_SKIP_PLAYWRIGHT=true)")
 
     # Ultimate fallback: return cloudscraper session even if it didn't work
     logger.warning("All bypass methods failed, using basic cloudscraper as fallback")
