@@ -49,10 +49,11 @@ CURL_CFFI_IMPERSONATES = [
 ]
 
 # Common headers that make requests look more like a real browser
+# Note: We don't advertise 'br' (brotli) since the brotli package may not be installed
 BROWSER_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
+    "Accept-Encoding": "gzip, deflate",
     "Connection": "keep-alive",
     "Upgrade-Insecure-Requests": "1",
     "Sec-Fetch-Dest": "document",

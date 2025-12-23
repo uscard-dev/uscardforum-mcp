@@ -5,6 +5,7 @@ with Discourse API endpoints.
 """
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Mapping, Sequence
 from typing import Any
@@ -25,6 +26,87 @@ RETRYABLE_EXCEPTIONS = (
 )
 
 
+class DiscourseHTTPError(requests.exceptions.HTTPError):
+    """HTTPError with enhanced error message from Discourse API response."""
+
+    def __init__(
+        self,
+        original: requests.exceptions.HTTPError,
+        detail: str | None = None,
+    ) -> None:
+        self.original = original
+        self.detail = detail
+        self.response = original.response
+        super().__init__(str(self), response=original.response)
+
+    def __str__(self) -> str:
+        status = self.response.status_code if self.response is not None else "?"
+        if self.detail:
+            return f"HTTP Error {status}: {self.detail}"
+        return f"HTTP Error {status}"
+
+
+def _extract_discourse_error(resp: requests.Response) -> str | None:
+    """Extract error message from Discourse API response.
+
+    Discourse returns errors in various formats:
+    - {"errors": ["error message 1", "error message 2"]}
+    - {"error": "single error message"}
+    - {"failed": "FAILED", "message": "error details"}
+
+    Args:
+        resp: Response object to extract error from
+
+    Returns:
+        Error message string or None if not extractable
+    """
+    if resp is None:
+        return None
+
+    try:
+        data = resp.json()
+        # Check for "errors" array (most common)
+        if isinstance(data.get("errors"), list) and data["errors"]:
+            return "; ".join(str(e) for e in data["errors"])
+        # Check for single "error" field
+        if data.get("error"):
+            return str(data["error"])
+        # Check for "message" field (used in some error responses)
+        if data.get("message"):
+            return str(data["message"])
+        # Check for "error_type" with additional info
+        if data.get("error_type"):
+            error_type = data["error_type"]
+            extras = data.get("extras", {})
+            if extras:
+                return f"{error_type}: {json.dumps(extras)}"
+            return str(error_type)
+    except (ValueError, TypeError, KeyError):
+        # Not JSON or unexpected format - try to get text snippet
+        pass
+
+    # Fall back to text snippet if available
+    if resp.text:
+        snippet = resp.text[:200].strip()
+        if snippet:
+            return snippet
+
+    return None
+
+
+def _raise_with_detail(exc: requests.exceptions.HTTPError) -> None:
+    """Re-raise HTTPError with Discourse error details if available.
+
+    Args:
+        exc: Original HTTPError
+
+    Raises:
+        DiscourseHTTPError: Enhanced error with details from response
+    """
+    detail = _extract_discourse_error(exc.response) if exc.response is not None else None
+    raise DiscourseHTTPError(exc, detail=detail) from exc
+
+
 def _is_retryable_status(exc: Exception) -> bool:
     """Check if an HTTPError should be retried.
 
@@ -34,9 +116,10 @@ def _is_retryable_status(exc: Exception) -> bool:
     - 403 Forbidden (might be Cloudflare challenge)
     - Cloudflare-specific error codes (520-524)
     """
-    if isinstance(exc, requests.exceptions.HTTPError):
-        if exc.response is not None:
-            status = exc.response.status_code
+    if isinstance(exc, (requests.exceptions.HTTPError, DiscourseHTTPError)):
+        response = getattr(exc, "response", None)
+        if response is not None:
+            status = response.status_code
             # Retry on 5xx, 429, 403 (Cloudflare), and Cloudflare-specific codes
             return status >= 500 or status in CLOUDFLARE_RETRY_CODES
     return True  # Retry other exceptions
@@ -47,13 +130,15 @@ def _on_backoff(details: dict[str, Any]) -> None:
     exc = details.get("exception")
     wait = details.get("wait", 0)
     tries = details.get("tries", 0)
-    if exc and isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
-        logger.warning(
-            f"Request failed with status {exc.response.status_code}, "
-            f"retry {tries}, waiting {wait:.1f}s"
-        )
-    else:
-        logger.warning(f"Request failed, retry {tries}, waiting {wait:.1f}s: {exc}")
+    if exc and isinstance(exc, (requests.exceptions.HTTPError, DiscourseHTTPError)):
+        response = getattr(exc, "response", None)
+        if response is not None:
+            logger.warning(
+                f"Request failed with status {response.status_code}, "
+                f"retry {tries}, waiting {wait:.1f}s"
+            )
+            return
+    logger.warning(f"Request failed, retry {tries}, waiting {wait:.1f}s: {exc}")
 
 
 def full_url(base_url: str, path_or_url: str) -> str:
@@ -76,7 +161,7 @@ def full_url(base_url: str, path_or_url: str) -> str:
 @limits(calls=3, period=1)  # Slightly slower rate to avoid Cloudflare triggers
 @backoff.on_exception(
     backoff.expo,
-    (requests.exceptions.HTTPError, *RETRYABLE_EXCEPTIONS),
+    (requests.exceptions.HTTPError, DiscourseHTTPError, *RETRYABLE_EXCEPTIONS),
     max_tries=5,  # More retries for Cloudflare
     giveup=lambda e: not _is_retryable_status(e),
     max_time=60,  # Longer max time for challenge solving
@@ -136,7 +221,11 @@ def request(
         resp.status_code = 503  # Force retry
         resp.raise_for_status()
 
-    resp.raise_for_status()
+    try:
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError as exc:
+        _raise_with_detail(exc)
+
     return resp
 
 

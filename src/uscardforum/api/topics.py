@@ -249,25 +249,24 @@ class TopicsAPI(BaseAPI):
         Returns:
             Created topic info with topic_id, slug, and post_id
         """
-        data: dict[str, Any] = {
+        json_data: dict[str, Any] = {
             "title": title,
             "raw": raw,
         }
         if category_id is not None:
-            data["category"] = int(category_id)
+            json_data["category"] = int(category_id)
         if tags:
-            data["tags[]"] = tags
+            json_data["tags"] = tags
 
         headers = {
             "Accept": "application/json",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             "X-Requested-With": "XMLHttpRequest",
             "Referer": f"{self._base_url}/",
         }
         if csrf_token:
             headers["X-CSRF-Token"] = csrf_token
 
-        payload = self._post("/posts.json", data=data, headers=headers)
+        payload = self._post("/posts.json", json=json_data, headers=headers)
         return CreatedTopic.from_api_response(payload)
 
     def create_post(
@@ -288,22 +287,21 @@ class TopicsAPI(BaseAPI):
         Returns:
             Created post info with post_id, post_number, etc.
         """
-        data: dict[str, Any] = {
+        json_data: dict[str, Any] = {
             "topic_id": int(topic_id),
             "raw": raw,
         }
         if reply_to_post_number is not None:
-            data["reply_to_post_number"] = int(reply_to_post_number)
+            json_data["reply_to_post_number"] = int(reply_to_post_number)
 
         headers = {
             "Accept": "application/json",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             "X-Requested-With": "XMLHttpRequest",
             "Referer": f"{self._base_url}/t/{int(topic_id)}",
         }
         if csrf_token:
             headers["X-CSRF-Token"] = csrf_token
 
-        payload = self._post("/posts.json", data=data, headers=headers)
+        payload = self._post("/posts.json", json=json_data, headers=headers)
         return CreatedPost.from_api_response(payload)
 
